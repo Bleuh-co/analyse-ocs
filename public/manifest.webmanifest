@@ -1,0 +1,27 @@
+{
+  "name": "Analyse OCS — Chanv",
+  "short_name": "Analyse OCS",
+  "description": "Application qui va analyser des documents fournis + d\'autres données venant d\'appels API afin de croiser ces informat... — Groupe Chanv",
+  "start_url": "/ocs",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#282828",
+  "categories": ["business", "productivity"],
+  "lang": "fr-CA",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
