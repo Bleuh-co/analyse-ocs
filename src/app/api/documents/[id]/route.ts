@@ -1,0 +1,9 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/auth-server";
+
+// DELETE /api/documents/[id] → Supprimer un document
+export async function DELETE(_req: NextRequest, _ctx: { params: Promise<{ id: string }> }) {
+  await requireSession();
+  // TODO: implémenter — voir Antigravity.md
+  return NextResponse.json({ success: true });
+}
