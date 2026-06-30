@@ -20,13 +20,11 @@ export function Sidebar() {
   // Build app-specific links for the widget
   const getLinks = useCallback(() => {
     const links: Array<{ label: string; icon: string; href: string; mobileOnly?: boolean }> = [
-      { label: "Mes tâches", icon: "📋", href: "/ocs", mobileOnly: true },
+      { label: "Analyses", icon: "📊", href: "/analyses" },
+      { label: "Documents", icon: "📄", href: "/documents" },
+      { label: "Sources API", icon: "🔌", href: "/sources" },
+      { label: "Zones", icon: "🗺️", href: "/zones" },
     ];
-    if (isAdmin) {
-      links.push(
-        { label: "Toutes les tâches", icon: "📑", href: "/ocs", mobileOnly: true },
-      );
-    }
     return links;
   }, [isAdmin]);
 
