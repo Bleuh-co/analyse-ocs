@@ -32,16 +32,25 @@ export default function DashboardPage() {
   const [region, setRegion] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [error, setError] = useState("");
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    setError("");
     const params = new URLSearchParams();
     if (region) params.set("region", region);
     if (fromDate) params.set("from", fromDate);
     if (toDate) params.set("to", toDate);
     fetch(`/api/dashboard/analytics?${params}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(setData)
+      .catch((err) => {
+        console.error("Analytics fetch error:", err);
+        setError("Erreur lors du chargement des données. Réessayez.");
+      })
       .finally(() => setLoading(false));
   }, [region, fromDate, toDate]);
 
@@ -104,6 +113,16 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={fetchData} className="text-red-700 font-semibold hover:underline ml-4">
+              🔄 Réessayer
+            </button>
+          </div>
+        )}
 
         {/* KPIs */}
         <KpiRow>

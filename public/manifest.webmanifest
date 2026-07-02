@@ -1,7 +1,7 @@
 {
   "name": "Analyse OCS — Chanv",
   "short_name": "Analyse OCS",
-  "description": "Application qui va analyser des documents fournis + d\'autres données venant d\'appels API afin de croiser ces informat... — Groupe Chanv",
+  "description": "Analyse des ventes OCS Ontario et mesure d'impact marketing — Groupe Chanv",
   "start_url": "/ocs",
   "scope": "/",
   "display": "standalone",
