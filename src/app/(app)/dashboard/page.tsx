@@ -20,7 +20,12 @@ interface AnalyticsData { byProduct: ProductRow[]; byStore: StoreRow[]; byMonth:
 
 /* Profil produit (THC/CBD) depuis DB-Products-Master */
 interface MasterProduct { sku: string; retailerSku: string; gtin12: string; gtin14: string; nameFr: string; name: string; category: string; thc: string; cbd: string }
-interface MasterEntry { thc: number | null; cbd: number | null; nameFr: string; category: string }
+interface MasterEntry { thc: number | null; cbd: number | null; nameFr: string; category: string; masterSku: string }
+
+/** URL de Pilotage Production (deep link natif : ?view=<SKU master>) */
+const PRODUCTION_URL =
+  process.env.NEXT_PUBLIC_PRODUCTION_URL ||
+  "https://nouvelle-production-bleuh-271227085398.northamerica-northeast1.run.app";
 /** Deux index : par GTIN-12 (clé primaire) et par Retailer SKU normalisé (fallback) */
 interface MasterMap { byGtin: Record<string, MasterEntry>; bySku: Record<string, MasterEntry> }
 
@@ -99,6 +104,7 @@ export default function DashboardPage() {
             cbd: parsePotency(p.cbd),
             nameFr: p.nameFr || p.name || "",
             category: p.category || "",
+            masterSku: p.sku || "",
           };
           const g12 = gtinTo12(p.gtin12 || p.gtin14 || "");
           if (g12) map.byGtin[g12] = entry;
@@ -517,6 +523,7 @@ function ProfileTab({
         storeCount: p.storeCount,
         thc: m?.thc ?? null,
         cbd: m?.cbd ?? null,
+        masterSku: m?.masterSku || "",
       };
     });
 
@@ -656,6 +663,7 @@ function ProfileTab({
                 <th style={{ textAlign: "right" }}>CBD</th>
                 <th style={{ textAlign: "right" }}>Unités</th>
                 <th style={{ textAlign: "right" }}>Stores</th>
+                <th style={{ textAlign: "center" }}>Lots</th>
               </tr>
             </thead>
             <tbody>
@@ -668,6 +676,21 @@ function ProfileTab({
                   <td style={{ textAlign: "right" }}>{p.cbd !== null ? `${p.cbd}%` : "—"}</td>
                   <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.units)}</td>
                   <td style={{ textAlign: "right" }}>{p.storeCount}</td>
+                  <td style={{ textAlign: "center" }}>
+                    {p.masterSku ? (
+                      <a
+                        href={`${PRODUCTION_URL}/?view=${encodeURIComponent(p.masterSku)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Voir les lots de ${p.masterSku} dans Pilotage Production (THC, CBD, terpènes par lot)`}
+                        className="text-slate-400 hover:text-chanv-terre transition-colors"
+                      >
+                        🧪
+                      </a>
+                    ) : (
+                      <span className="text-slate-200">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
