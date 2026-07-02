@@ -86,7 +86,10 @@ export async function POST(req: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set({ ...sessionCookieOptions(), value: sessionCookie });
   } catch (e: any) {
+    // Sans cookie de session, l'utilisateur serait "demi-connecté"
+    // (widget hydraté mais session serveur absente) → échec franc
     console.error("[SSO] session cookie creation failed");
+    return NextResponse.json({ valid: false, error: "Création de session impossible" });
   }
 
   const favorites = await resolveFavorites(email!);
