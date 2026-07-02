@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: "/sheets", label: "Sheets", icon: "📑" },
   { href: "/upload", label: "Importer", icon: "📤" },
   { href: "/stores", label: "Stores", icon: "🏪" },
+  { href: "/aide", label: "Aide", icon: "📖" },
 ];
 
 export function NavBar() {

@@ -25,6 +25,7 @@ export function Sidebar() {
       { label: "Sheets", icon: "📑", href: "/sheets", mobileOnly: true },
       { label: "Importer", icon: "📤", href: "/upload", mobileOnly: true },
       { label: "Stores", icon: "🏪", href: "/stores", mobileOnly: true },
+      { label: "Aide", icon: "📖", href: "/aide", mobileOnly: true },
     ];
     return links;
   }, [isAdmin]);
