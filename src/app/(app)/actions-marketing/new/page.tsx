@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 /* ── Types ─────────────────────────────────────── */
 interface StoreOption { id: string; name: string; city: string; region: string; address: string }
+interface ProductOption { sku: string; name: string }
 
 const ACTION_TYPES = [
   { value: "plv_envoye", label: "📦 PLV envoyé" },
@@ -65,6 +66,30 @@ export default function NewActionPage() {
 
   // Auto-fill store info
   const selectedStore = stores.find((s) => s.id === storeId);
+
+  // Produits du store sélectionné → datalist SKU (le calcul d'impact
+  // matche par SKU exact : une typo donnerait un impact silencieusement nul)
+  const [storeProducts, setStoreProducts] = useState<ProductOption[]>([]);
+  useEffect(() => {
+    if (!storeId) { setStoreProducts([]); return; }
+    fetch(`/api/stores/${storeId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const prods = ((d?.products || []) as Record<string, unknown>[])
+          .map((p) => ({ sku: String(p.sku || ""), name: String(p.name || "") }))
+          .filter((p) => p.sku);
+        setStoreProducts(prods.sort((a, b) => a.name.localeCompare(b.name)));
+      })
+      .catch(() => setStoreProducts([]));
+  }, [storeId]);
+
+  // Auto-remplir le nom du produit quand le SKU saisi correspond
+  useEffect(() => {
+    if (!sku || productName) return;
+    const match = storeProducts.find((p) => p.sku === sku);
+    if (match?.name) setProductName(match.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sku, storeProducts]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -218,8 +243,17 @@ export default function NewActionPage() {
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
                 className="chanv-input"
-                placeholder="ex: BLA-HYB-3.5G"
+                list="sku-options"
+                placeholder={storeId ? "Choisir parmi les produits du magasin…" : "ex: 110964_3.5g___"}
               />
+              <datalist id="sku-options">
+                {storeProducts.map((p) => (
+                  <option key={p.sku} value={p.sku}>{p.name}</option>
+                ))}
+              </datalist>
+              {storeId && storeProducts.length === 0 && (
+                <p className="text-xs text-slate-400 mt-1">Aucun produit connu pour ce magasin.</p>
+              )}
             </div>
           </div>
 

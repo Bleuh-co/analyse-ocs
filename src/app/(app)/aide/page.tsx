@@ -149,14 +149,13 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "Que signifie « store archivé » et « store actif » ?",
+    q: "Que signifie « store archivé » ?",
     a: (
       <>
-        Un store est <strong>archivé</strong> quand un administrateur le marque comme tel
-        (champ <code>archived</code>) — il est alors exclu des dashboards. Le KPI «&nbsp;stores
-        actifs&nbsp;» applique en plus un seuil informatif : un store sans mise à jour depuis{" "}
-        <strong>plus de 4 mois</strong> n'est plus compté comme actif, même s'il n'est pas
-        formellement archivé.
+        Un store est <strong>archivé</strong> quand un gestionnaire ou un administrateur le
+        marque comme tel (champ <code>archived</code>) — il est alors exclu des dashboards et
+        de la liste par défaut. Il n'y a pas d'archivage automatique : un store inactif reste
+        visible tant qu'il n'est pas archivé manuellement.
       </>
     ),
   },

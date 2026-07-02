@@ -1,8 +1,37 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileDropZone } from "@/components/FileDropZone";
 import type { EnrichedRow } from "@/lib/ocs-parser";
+
+interface UploadLog {
+  id: string;
+  filename: string;
+  uploaded_by: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  uploaded_at: any;
+  rows_imported: number;
+  stores_created: number;
+  stores_updated: number;
+  products_added: number;
+  status: string;
+}
+
+function formatLogDate(d: unknown): string {
+  if (!d) return "—";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ts = typeof d === "object" && d !== null && "_seconds" in (d as any)
+    ? (d as any)._seconds * 1000
+    : Date.parse(d as string);
+  if (isNaN(ts)) return "—";
+  return new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(ts));
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  completed: "✅ Complété",
+  processing: "⏳ En cours",
+  failed: "❌ Échoué",
+};
 
 type ParseResult = {
   filename: string;
@@ -23,6 +52,16 @@ export default function UploadPage() {
   const [result, setResult] = useState<ParseResult | null>(null);
   const [confirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Historique des imports
+  const [logs, setLogs] = useState<UploadLog[]>([]);
+  const loadLogs = useCallback(() => {
+    fetch("/api/uploads")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setLogs(d?.uploads || []))
+      .catch(() => {});
+  }, []);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const handleFile = useCallback(async (file: File) => {
     setPhase("parsing");
@@ -65,11 +104,12 @@ export default function UploadPage() {
       const data: ConfirmResult = await res.json();
       setConfirmResult(data);
       setPhase("done");
+      loadLogs(); // rafraîchir l'historique
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inattendue");
       setPhase("error");
     }
-  }, [result]);
+  }, [result, loadLogs]);
 
   const reset = useCallback(() => {
     setPhase("select");
@@ -252,6 +292,47 @@ export default function UploadPage() {
             <button className="btn btn-primary" onClick={reset}>
               Nouvel import
             </button>
+          </div>
+        )}
+
+        {/* Historique des imports */}
+        {logs.length > 0 && (
+          <div className="section-card" style={{ padding: "24px" }}>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
+              📋 Derniers imports
+            </h3>
+            <div style={{ overflowX: "auto" }}>
+              <table className="chanv-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Fichier</th>
+                    <th>Par</th>
+                    <th style={{ textAlign: "right" }}>Lignes</th>
+                    <th style={{ textAlign: "right" }}>Stores créés</th>
+                    <th style={{ textAlign: "right" }}>Stores màj</th>
+                    <th style={{ textAlign: "right" }}>Produits</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="text-xs whitespace-nowrap">{formatLogDate(log.uploaded_at)}</td>
+                      <td className="text-xs font-mono" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {log.filename}
+                      </td>
+                      <td className="text-xs">{log.uploaded_by?.split("@")[0] || "—"}</td>
+                      <td className="text-xs" style={{ textAlign: "right" }}>{log.rows_imported ?? "—"}</td>
+                      <td className="text-xs" style={{ textAlign: "right" }}>{log.stores_created ?? 0}</td>
+                      <td className="text-xs" style={{ textAlign: "right" }}>{log.stores_updated ?? 0}</td>
+                      <td className="text-xs" style={{ textAlign: "right" }}>{log.products_added ?? 0}</td>
+                      <td className="text-xs whitespace-nowrap">{STATUS_LABELS[log.status] || log.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

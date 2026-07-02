@@ -16,7 +16,7 @@ interface MonthRow { month: string; units: number }
 interface DayRow { label: string; units: number }
 interface RegionRow { region: string; units: number }
 interface CategoryRow { category: string; units: number }
-interface AnalyticsData { byProduct: ProductRow[]; byStore: StoreRow[]; byMonth: MonthRow[]; byDay: DayRow[]; byRegion: RegionRow[]; byCategory: CategoryRow[]; regions: string[]; totals: Totals }
+interface AnalyticsData { byProduct: ProductRow[]; byStore: StoreRow[]; byMonth: MonthRow[]; byDay: DayRow[]; byRegion: RegionRow[]; byCategory: CategoryRow[]; regions: string[]; source?: "ledger" | "snapshot"; totals: Totals }
 
 /* Profil produit (THC/CBD) depuis DB-Products-Master */
 interface MasterProduct { sku: string; retailerSku: string; gtin12: string; gtin14: string; nameFr: string; name: string; category: string; thc: string; cbd: string }
@@ -138,7 +138,21 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold mb-1">📊 Tableau de bord</h2>
-            <p className="text-sm text-slate-500">Ventes OCS Ontario — Performance Bleuh</p>
+            <p className="text-sm text-slate-500">
+              Ventes OCS Ontario — Performance Bleuh
+              {data?.source && (
+                <span
+                  className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--chanv-fibre)] text-slate-500 align-middle"
+                  title={
+                    data.source === "ledger"
+                      ? "Journal cumulatif des ventes : chaque commande compte à sa date réelle"
+                      : "Instantané : dernière commande connue par magasin × produit"
+                  }
+                >
+                  {data.source === "ledger" ? "📒 journal" : "📷 instantané"}
+                </span>
+              )}
+            </p>
           </div>
           {/* Filtres */}
           <div className="flex flex-wrap items-center gap-2">
