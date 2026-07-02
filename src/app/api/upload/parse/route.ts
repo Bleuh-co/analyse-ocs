@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     ...doc.data(),
   }));
 
-  const result = parseAndMatchOcsXlsx(buffer, existingStores, file.name);
+  const result = await parseAndMatchOcsXlsx(buffer, existingStores, file.name);
 
   return NextResponse.json(result);
 }

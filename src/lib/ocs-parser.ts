@@ -12,7 +12,7 @@
  *  - parseAndMatchOcsXlsx : pipeline complet parse + matching
  */
 
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -238,18 +238,54 @@ const COLUMN_MAP: Record<string, keyof OcsRawRow> = {
 /**
  * Parse un fichier XLSX OCS et matche les lignes contre les stores existants.
  */
-export function parseAndMatchOcsXlsx(
+export async function parseAndMatchOcsXlsx(
   buffer: Buffer,
   existingStores: ExistingStore[],
   filename = "data.xlsx"
-): ParseResult {
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheetName = workbook.SheetNames[0];
+): Promise<ParseResult> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+  const worksheet = workbook.worksheets[0];
+
+  if (!worksheet || worksheet.rowCount <= 1) {
+    return {
+      filename,
+      totalRows: 0,
+      stats: { matched: 0, unmatched: 0, invalid: 0 },
+      rows: [],
+    };
+  }
+
+  // Extract headers from row 1, then build row objects
+  const headerRow = worksheet.getRow(1);
+  const headers: string[] = [];
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    headers[colNumber] = String(cell.value || "").trim();
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawRows: Record<string, any>[] = XLSX.utils.sheet_to_json(
-    workbook.Sheets[sheetName],
-    { defval: "" }
-  );
+  const rawRows: Record<string, any>[] = [];
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return; // skip header
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj: Record<string, any> = {};
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const key = headers[colNumber];
+      if (key) {
+        // Handle ExcelJS rich text / date objects
+        const v = cell.value;
+        if (v instanceof Date) {
+          obj[key] = v.toISOString().substring(0, 10);
+        } else if (typeof v === "object" && v !== null && "richText" in v) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          obj[key] = (v as any).richText.map((r: any) => r.text).join("");
+        } else {
+          obj[key] = v ?? "";
+        }
+      }
+    });
+    rawRows.push(obj);
+  });
 
   if (rawRows.length === 0) {
     return {
