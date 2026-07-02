@@ -60,7 +60,7 @@ export default function LoginPage() {
               try { localStorage.setItem("chanv_sidebar_favorites", JSON.stringify(result.favorites)); } catch {}
             }
           }
-          window.location.href = "/ocs";
+          window.location.href = "/dashboard";
           return;
         }
         console.warn("SSO refused");
@@ -75,7 +75,7 @@ export default function LoginPage() {
   // Redirection si déjà connecté
   useEffect(() => {
     if (session) {
-      router.replace("/ocs");
+      router.replace("/dashboard");
     }
   }, [session, router]);
 

@@ -225,4 +225,15 @@ export async function requireAdmin(): Promise<SessionContext> {
   return s;
 }
 
+/**
+ * Exige `admin`, `superadmin` ou rôle résolu depuis un grade ≥ Gestionnaire.
+ * Utilisé pour les routes d'écriture (upload, création/édition stores).
+ */
+export async function requireGestionnaire(): Promise<SessionContext> {
+  const s = await requireSession();
+  // "membre" correspond au grade "Consulter" = lecture seule
+  if (s.role === "membre") throw new Error("FORBIDDEN");
+  return s;
+}
+
 export { SESSION_COOKIE };

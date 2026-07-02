@@ -41,3 +41,4 @@ yarn-error.log*
 # secrets
 credentials.json
 service-account.json
+*.xlsx

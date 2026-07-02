@@ -20,10 +20,9 @@ export function Sidebar() {
   // Build app-specific links for the widget
   const getLinks = useCallback(() => {
     const links: Array<{ label: string; icon: string; href: string; mobileOnly?: boolean }> = [
-      { label: "Analyses", icon: "📊", href: "/analyses" },
-      { label: "Documents", icon: "📄", href: "/documents" },
-      { label: "Sources API", icon: "🔌", href: "/sources" },
-      { label: "Zones", icon: "🗺️", href: "/zones" },
+      { label: "Dashboard", icon: "📊", href: "/dashboard" },
+      { label: "Importer", icon: "📤", href: "/upload" },
+      { label: "Stores", icon: "🏪", href: "/stores" },
     ];
     return links;
   }, [isAdmin]);
