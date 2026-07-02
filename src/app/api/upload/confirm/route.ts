@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       processedStores.add(storeId);
 
       // Upsert produit dans la sous-collection du store
+      // (snapshot "dernière commande connue" — compatible Ontario-Sales-Data)
       const gtin = row.computed.gtin12 || row.raw.itemBarcode;
       if (gtin) {
         operations.push({
@@ -114,6 +115,34 @@ export async function POST(req: NextRequest) {
           merge: true,
         });
         stats.products_added++;
+
+        // Journal cumulatif des ventes : 1 doc par store × produit × date de
+        // commande. L'ID déterministe rend le ré-import d'un même fichier
+        // idempotent, tandis que des dates différentes s'accumulent —
+        // contrairement au snapshot ci-dessus qui écrase.
+        if (row.raw.orderDate) {
+          operations.push({
+            ref: db
+              .collection("stores")
+              .doc(storeId)
+              .collection("sales")
+              .doc(`${gtin}_${row.raw.orderDate}`),
+            data: {
+              gtin,
+              sku: row.raw.sku,
+              name: row.raw.itemName,
+              category: row.raw.category,
+              brand: row.raw.brand,
+              units_sold: row.raw.unitsSold || 0,
+              order_date: row.raw.orderDate,
+              order_type: row.raw.orderType || "",
+              region: row.raw.region || "",
+              source_file: filename || "unknown.xlsx",
+              imported_at: new Date(),
+            },
+            merge: true,
+          });
+        }
       }
     }
 

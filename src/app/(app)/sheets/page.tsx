@@ -23,7 +23,8 @@ const ACTION_LABELS: Record<string, string> = {
 
 export default function SheetsPage() {
   const { session } = useAuth();
-  const isGestionnaire = session?.role === "admin" || session?.role === "superadmin";
+  const isGestionnaire =
+    session?.role === "gestionnaire" || session?.role === "admin" || session?.role === "superadmin";
 
   const [activeSheet, setActiveSheet] = useState<SheetKey>("crm_historique");
   const [tabs, setTabs] = useState<string[]>([]);

@@ -39,6 +39,7 @@ function mapStandardRole(grade: string): Role {
     case "Administrateur":
       return "admin";
     case "Gestionnaire":
+      return "gestionnaire";
     case "Consulter":
       return "membre";
     case "Non visible":
@@ -226,13 +227,15 @@ export async function requireAdmin(): Promise<SessionContext> {
 }
 
 /**
- * Exige `admin`, `superadmin` ou rôle résolu depuis un grade ≥ Gestionnaire.
- * Utilisé pour les routes d'écriture (upload, création/édition stores).
+ * Exige `gestionnaire`, `admin` ou `superadmin`.
+ * Utilisé pour les routes d'écriture (upload, stores, sheets, marketing).
+ * La suppression de stores reste réservée à requireAdmin().
  */
 export async function requireGestionnaire(): Promise<SessionContext> {
   const s = await requireSession();
-  // "membre" correspond au grade "Consulter" = lecture seule
-  if (s.role === "membre") throw new Error("FORBIDDEN");
+  if (s.role !== "gestionnaire" && s.role !== "admin" && s.role !== "superadmin") {
+    throw new Error("FORBIDDEN");
+  }
   return s;
 }
 

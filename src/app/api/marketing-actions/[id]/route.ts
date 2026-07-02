@@ -48,25 +48,31 @@ export async function GET(_req: NextRequest, ctx: Params) {
       .toISOString()
       .split("T")[0];
 
-    // Charger tous les products du store
-    const prodsSnap = await db
-      .collection("stores")
-      .doc(storeId)
-      .collection("products")
-      .get();
+    // Source : journal cumulatif `sales` (1 doc par produit × date) si
+    // présent, sinon fallback snapshot `products` (dernière commande connue)
+    let salesDocs = (
+      await db.collection("stores").doc(storeId).collection("sales").get()
+    ).docs;
+    const useLedger = salesDocs.length > 0;
+    if (!useLedger) {
+      salesDocs = (
+        await db.collection("stores").doc(storeId).collection("products").get()
+      ).docs;
+    }
 
     let unitsBefore = 0;
     let unitsAfter = 0;
     let firstOrderAfter: string | null = null;
 
-    for (const pDoc of prodsSnap.docs) {
+    for (const pDoc of salesDocs) {
       const p = pDoc.data();
       // Normalise ISO / serial Excel (legacy) / Timestamp
-      const orderDate = coerceToIsoDate(p.last_order_date);
+      const orderDate = coerceToIsoDate(useLedger ? p.order_date : p.last_order_date);
       const units = Number(p.units_sold) || 0;
 
-      // Si on a un SKU cible, filtrer
-      if (sku && (p.sku as string) !== sku && pDoc.id !== sku) continue;
+      // Si on a un SKU cible, filtrer (par SKU, GTIN ou ID du doc)
+      if (sku && (p.sku as string) !== sku && (p.gtin as string) !== sku && pDoc.id !== sku)
+        continue;
 
       if (orderDate >= before14 && orderDate < actionDate) {
         unitsBefore += units;
@@ -99,6 +105,9 @@ export async function GET(_req: NextRequest, ctx: Params) {
       lift_percent: liftPercent,
       reacted: unitsAfter > 0,
       reaction_days: reactionDays,
+      // "ledger" = journal cumulatif (fiable) ; "snapshot" = dernière
+      // commande connue (le "avant" peut être sous-estimé)
+      source: useLedger ? "ledger" : "snapshot",
     };
   }
 

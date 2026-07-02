@@ -64,8 +64,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 2. Charger TOUS les products via collectionGroup (1 seule requête!)
-    const allProductsSnap = await db.collectionGroup("products").get();
+    // 2. Source des ventes : journal cumulatif `sales` (1 doc par
+    //    store × produit × date — vraies séries temporelles) si présent,
+    //    sinon fallback sur le snapshot `products` (dernière commande
+    //    connue par store × produit, hérité d'Ontario-Sales-Data).
+    const salesSnap = await db.collectionGroup("sales").get();
+    const useLedger = !salesSnap.empty;
+    const sourceDocs = useLedger
+      ? salesSnap.docs
+      : (await db.collectionGroup("products").get()).docs;
 
     // Maps d'agrégation
     const productMap = new Map<
@@ -102,8 +109,8 @@ export async function GET(req: NextRequest) {
     let totalUnits = 0;
     let totalLines = 0;
 
-    for (const prodDoc of allProductsSnap.docs) {
-      // Extract storeId from the document path: stores/{storeId}/products/{productId}
+    for (const prodDoc of sourceDocs) {
+      // Extract storeId from the document path: stores/{storeId}/(sales|products)/{docId}
       const pathParts = prodDoc.ref.path.split("/");
       const storeId = pathParts[1] || "";
       const storeInfo = storeIndex.get(storeId);
@@ -117,11 +124,12 @@ export async function GET(req: NextRequest) {
       const p = prodDoc.data();
       const units = Number(p.units_sold) || 0;
       // Normalise ISO / serial Excel (legacy Ontario-Sales-Data) / Timestamp
-      const orderDate = coerceToIsoDate(p.last_order_date);
+      const orderDate = coerceToIsoDate(useLedger ? p.order_date : p.last_order_date);
       const region = toStr(p.region) || storeRegion;
       const category = toStr(p.category) || "Inconnu";
       const sku = toStr(p.sku) || prodDoc.id;
-      // L'ID du doc produit est le GTIN-12 (clé de jointure vers DB-Products-Master)
+      // GTIN-12 : champ explicite (ledger) ou ID du doc produit (snapshot) —
+      // clé de jointure vers DB-Products-Master
       const gtin = toStr(p.gtin) || prodDoc.id;
 
       // Filtre par date
@@ -251,6 +259,9 @@ export async function GET(req: NextRequest) {
       byRegion,
       byCategory,
       regions,
+      // "ledger" = journal cumulatif (vraies séries temporelles) ;
+      // "snapshot" = dernière commande connue par store × produit
+      source: useLedger ? "ledger" : "snapshot",
       totals: {
         totalUnits,
         totalLines,

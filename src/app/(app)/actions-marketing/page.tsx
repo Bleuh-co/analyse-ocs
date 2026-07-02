@@ -50,7 +50,8 @@ export default function MarketingActionsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
 
-  const isGestionnaire = session?.role === "admin" || session?.role === "superadmin";
+  const isGestionnaire =
+    session?.role === "gestionnaire" || session?.role === "admin" || session?.role === "superadmin";
 
   const fetchActions = useCallback(() => {
     setLoading(true);

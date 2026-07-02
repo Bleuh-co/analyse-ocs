@@ -108,11 +108,11 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: "Les unités du dashboard ne correspondent pas au fichier brut ?",
     a: (
       <>
-        C'est attendu, pour trois raisons : (1) l'app conserve la{" "}
-        <strong>dernière commande connue</strong> par magasin × produit — un nouvel import
-        remplace l'état précédent de la même paire, il ne s'additionne pas ; (2) le dashboard{" "}
-        <strong>ignore les stores marqués archivés</strong> et les stores inconnus ; (3) seules
-        les lignes <em>matchées</em> et confirmées sont écrites en base.
+        C'est attendu, pour trois raisons : (1) le dashboard{" "}
+        <strong>ignore les stores marqués archivés</strong> et les stores inconnus ; (2) seules
+        les lignes <em>matchées</em> et confirmées sont écrites en base ; (3) l'historique
+        antérieur au journal cumulatif (juillet 2026) est partiel — seule la dernière commande
+        connue de chaque magasin × produit a pu être préservée.
       </>
     ),
   },
@@ -141,10 +141,10 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: "Puis-je modifier un magasin ou une donnée sans être admin ?",
     a: (
       <>
-        Non : actuellement, toutes les écritures (import, création / édition / suppression de
-        stores, édition des Sheets CRM) exigent le rôle <strong>administrateur</strong>. Le
-        rôle <strong>membre</strong> (grades Hub « Consulter » et « Gestionnaire ») est en
-        lecture seule. Contactez un administrateur pour faire évoluer votre accès.
+        Oui : le rôle <strong>gestionnaire</strong> (grade Hub « Gestionnaire ») peut importer,
+        créer / éditer des stores, éditer les Sheets CRM et gérer les actions marketing. Seule
+        la <strong>suppression</strong> de stores exige le rôle <strong>administrateur</strong>.
+        Le rôle <strong>membre</strong> (grade « Consulter ») est en lecture seule.
       </>
     ),
   },
@@ -298,15 +298,19 @@ export default function AidePage() {
                   <td className="font-semibold">👁️ Membre</td>
                   <td>
                     Consulter : dashboard, stores, sheets, historique (lecture seule).
-                    Correspond aux grades Hub « Consulter » et « Gestionnaire ».
+                    Correspond au grade Hub « Consulter ».
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">🔧 Gestionnaire</td>
+                  <td>
+                    Tout le membre + importer des fichiers, créer / éditer des stores, éditer
+                    les Sheets CRM, gérer les actions marketing
                   </td>
                 </tr>
                 <tr>
                   <td className="font-semibold">⭐ Administrateur</td>
-                  <td>
-                    Tout le membre + importer des fichiers, créer / éditer / supprimer des
-                    stores, éditer les Sheets CRM, gérer les actions marketing
-                  </td>
+                  <td>Tout le gestionnaire + supprimer des stores</td>
                 </tr>
                 <tr>
                   <td className="font-semibold">👑 Super Administrateur</td>
@@ -373,12 +377,13 @@ export default function AidePage() {
               opérations) et un journal d'import est conservé.
             </Card>
           </div>
-          <Callout variant="warn">
-            ⚠️ <strong>Important — donnée conservée :</strong> les fichiers OCS sont des extraits
-            hebdomadaires. Pour chaque <strong>magasin × produit</strong>, l'app conserve la{" "}
-            <strong>dernière commande connue</strong> (unités + date) : un nouvel import
-            remplace l'état précédent de la même paire, il ne s'y additionne pas. Les lignes
-            « Total » et « Applied filters » en fin de fichier sont automatiquement ignorées.
+          <Callout variant="info">
+            ℹ️ <strong>Donnée conservée :</strong> chaque import alimente un{" "}
+            <strong>journal cumulatif des ventes</strong> (1 entrée par magasin × produit ×
+            date de commande) — réimporter le même fichier ne crée pas de doublon. La fiche
+            magasin affiche en plus l'état de la <em>dernière commande connue</em> par produit.
+            Les lignes « Total » et « Applied filters » en fin de fichier sont automatiquement
+            ignorées.
           </Callout>
           <Callout variant="tip">
             💡 Astuce : si beaucoup de lignes sont <code>unmatched</code>, créez d'abord les
@@ -395,11 +400,11 @@ export default function AidePage() {
             dates s'appliquent avant agrégation.
           </p>
 
-          <Callout variant="warn">
-            ⚠️ Toutes les « unités » ci-dessous portent sur la{" "}
-            <strong>dernière commande connue par magasin × produit</strong> (voir section
-            Import). Ce sont des indicateurs de l'activité récente, pas un cumul historique
-            complet des ventes.
+          <Callout variant="info">
+            ℹ️ Les agrégations utilisent le <strong>journal cumulatif des ventes</strong> :
+            chaque commande importée compte une fois, à sa date réelle. L'historique antérieur
+            au journal (initialisé en juillet 2026) provient de la dernière commande connue par
+            magasin × produit — il est donc partiel avant cette date.
           </Callout>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
@@ -471,11 +476,11 @@ export default function AidePage() {
             <Formula label="A réagi ?" formula="unités_après > 0" />
             <Formula label="Temps de réaction" formula="jours entre l'action et la 1ʳᵉ commande" />
           </div>
-          <Callout variant="warn">
-            ⚠️ Le calcul repose sur la <strong>dernière commande connue</strong> par produit :
-            si le magasin recommande après l'action, sa commande d'avant est remplacée en base
-            et « avant » peut être sous-estimé. Interprétez le lift comme un{" "}
-            <strong>signal de réaction</strong>, pas comme une mesure comptable exacte.
+          <Callout variant="info">
+            ℹ️ Le calcul s'appuie sur le <strong>journal cumulatif des ventes</strong> : chaque
+            commande compte à sa date réelle. Pour les actions antérieures au journal
+            (juillet 2026), la fenêtre « avant » peut être incomplète — interprétez alors le
+            lift comme un signal de réaction plutôt qu'une mesure exacte.
           </Callout>
         </Section>
 
@@ -487,7 +492,7 @@ export default function AidePage() {
             classeurs est accessible (protection contre les accès non prévus).
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Card title="✏️ Édition (administrateur)">
+            <Card title="✏️ Édition (gestionnaire et +)">
               Cliquez une cellule pour la modifier. Historique et Segmentation sont éditables ;
               Products Master est en lecture seule.
             </Card>
