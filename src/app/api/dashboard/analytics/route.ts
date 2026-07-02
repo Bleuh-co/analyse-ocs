@@ -8,6 +8,31 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 /**
+ * Safely coerce any Firestore value to a string.
+ * Handles: string, number, Timestamp ({_seconds}), Date, null, undefined.
+ */
+function toStr(val: unknown): string {
+  if (val == null) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number") return String(val);
+  // Firestore Timestamp has toDate()
+  if (typeof val === "object" && val !== null) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v = val as any;
+    if (typeof v.toDate === "function") {
+      return v.toDate().toISOString().split("T")[0]; // YYYY-MM-DD
+    }
+    if (v instanceof Date) {
+      return v.toISOString().split("T")[0];
+    }
+    if ("_seconds" in v) {
+      return new Date(v._seconds * 1000).toISOString().split("T")[0];
+    }
+  }
+  return String(val);
+}
+
+/**
  * GET /api/dashboard/analytics — Agrégations avancées pour les dashboards Recharts.
  *
  * Uses collectionGroup('products') for a single query instead of
@@ -89,10 +114,10 @@ export async function GET(req: NextRequest) {
 
       const p = prodDoc.data();
       const units = Number(p.units_sold) || 0;
-      const orderDate = (p.last_order_date as string) || "";
-      const region = (p.region as string) || storeRegion;
-      const category = (p.category as string) || "Inconnu";
-      const sku = (p.sku as string) || prodDoc.id;
+      const orderDate = toStr(p.last_order_date);
+      const region = toStr(p.region) || storeRegion;
+      const category = toStr(p.category) || "Inconnu";
+      const sku = toStr(p.sku) || prodDoc.id;
 
       // Filtre par date
       if (fromDate && orderDate < fromDate) continue;
@@ -110,9 +135,9 @@ export async function GET(req: NextRequest) {
       } else {
         productMap.set(sku, {
           sku,
-          name: (p.name as string) || sku,
+          name: toStr(p.name) || sku,
           category,
-          brand: (p.brand as string) || "",
+          brand: toStr(p.brand),
           totalUnits: units,
           storeIds: new Set([storeId]),
           orderDates: orderDate ? [orderDate] : [],
