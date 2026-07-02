@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { KpiCard, KpiRow } from "@/components/KpiCard";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  ScatterChart, Scatter, ZAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
@@ -17,12 +18,42 @@ interface RegionRow { region: string; units: number }
 interface CategoryRow { category: string; units: number }
 interface AnalyticsData { byProduct: ProductRow[]; byStore: StoreRow[]; byMonth: MonthRow[]; byDay: DayRow[]; byRegion: RegionRow[]; byCategory: CategoryRow[]; regions: string[]; totals: Totals }
 
+/* Profil produit (THC/CBD) depuis DB-Products-Master */
+interface MasterProduct { sku: string; nameFr: string; name: string; category: string; thc: string; cbd: string }
+type MasterMap = Record<string, { thc: number | null; cbd: number | null; nameFr: string; category: string }>;
+
 const COLORS = ["#C4A265", "#8B6914", "#A0522D", "#6B8E23", "#4682B4", "#9370DB", "#CD853F", "#D2691E", "#BC8F8F", "#8FBC8F"];
-const TABS = ["Aperçu", "Produits", "Stores", "Temps"] as const;
+const TABS = ["Aperçu", "Produits", "Stores", "Temps", "Profil"] as const;
 type Tab = (typeof TABS)[number];
 
 function formatNum(n: number): string {
   return new Intl.NumberFormat("fr-CA").format(n);
+}
+
+/** Parse une valeur de potency ("18,5 %", "20", "0.21") en pourcentage numérique, ou null. */
+function parsePotency(raw: string): number | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^0-9.,]/g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const n = parseFloat(cleaned);
+  if (isNaN(n)) return null;
+  // Certaines sources stockent une fraction (0.21 = 21 %) — on la ramène en %.
+  return n > 0 && n <= 1 ? n * 100 : n;
+}
+
+/** Coefficient de corrélation de Pearson entre deux séries de même longueur. */
+function pearson(xs: number[], ys: number[]): number | null {
+  const n = xs.length;
+  if (n < 3) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    const a = xs[i] - mx, b = ys[i] - my;
+    num += a * b; dx += a * a; dy += b * b;
+  }
+  const denom = Math.sqrt(dx * dy);
+  return denom === 0 ? null : num / denom;
 }
 
 export default function DashboardPage() {
@@ -33,6 +64,28 @@ export default function DashboardPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [error, setError] = useState("");
+  const [master, setMaster] = useState<MasterMap | null>(null);
+
+  // Charger le référentiel produits (THC/CBD/nom FR) une seule fois
+  useEffect(() => {
+    fetch("/api/products-master")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.products) return;
+        const map: MasterMap = {};
+        (d.products as MasterProduct[]).forEach((p) => {
+          if (!p.sku) return;
+          map[p.sku.trim().toUpperCase()] = {
+            thc: parsePotency(p.thc),
+            cbd: parsePotency(p.cbd),
+            nameFr: p.nameFr || p.name || "",
+            category: p.category || "",
+          };
+        });
+        setMaster(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -137,6 +190,7 @@ export default function DashboardPage() {
         {tab === "Produits" && <ProductsTab data={data} loading={loading} />}
         {tab === "Stores" && <StoresTab data={data} loading={loading} />}
         {tab === "Temps" && <TimeTab data={data} loading={loading} />}
+        {tab === "Profil" && <ProfileTab data={data} master={master} loading={loading} />}
       </div>
     </div>
   );
@@ -379,6 +433,207 @@ function TimeTab({ data, loading }: { data: AnalyticsData | null; loading: boole
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
+    </div>
+  );
+}
+
+/* ── Profil produit (THC/CBD × ventes) ───────────── */
+const THC_BANDS = [
+  { label: "< 10 %", min: 0, max: 10 },
+  { label: "10–15 %", min: 10, max: 15 },
+  { label: "15–20 %", min: 15, max: 20 },
+  { label: "20–25 %", min: 20, max: 25 },
+  { label: "25 %+", min: 25, max: Infinity },
+];
+
+function ProfileTab({
+  data,
+  master,
+  loading,
+}: {
+  data: AnalyticsData | null;
+  master: MasterMap | null;
+  loading: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  if (loading || !data) return <LoadingSkeleton />;
+  if (!master) {
+    return (
+      <div className="section-card p-8 text-center text-slate-400">
+        Chargement du référentiel produits (THC/CBD)…
+      </div>
+    );
+  }
+
+  // Joindre les ventes par produit avec le profil THC/CBD du Products-Master
+  const enriched = data.byProduct
+    .map((p) => {
+      const m = master[p.sku.trim().toUpperCase()];
+      return {
+        sku: p.sku,
+        name: m?.nameFr || p.name,
+        category: p.category || m?.category || "",
+        units: p.totalUnits,
+        storeCount: p.storeCount,
+        thc: m?.thc ?? null,
+        cbd: m?.cbd ?? null,
+      };
+    });
+
+  const withThc = enriched.filter((p) => p.thc !== null);
+  const matchRate = enriched.length
+    ? Math.round((withThc.length / enriched.length) * 100)
+    : 0;
+
+  // Corrélation THC × unités
+  const r = pearson(withThc.map((p) => p.thc as number), withThc.map((p) => p.units));
+  const corrLabel =
+    r === null ? "—" : r > 0.15 ? "positive" : r < -0.15 ? "négative" : "faible";
+
+  // Ventes par tranche de THC
+  const bands = THC_BANDS.map((b) => ({
+    label: b.label,
+    units: withThc
+      .filter((p) => (p.thc as number) >= b.min && (p.thc as number) < b.max)
+      .reduce((sum, p) => sum + p.units, 0),
+    products: withThc.filter((p) => (p.thc as number) >= b.min && (p.thc as number) < b.max).length,
+  }));
+
+  // Nuage de points (top 150 pour rester lisible)
+  const scatter = withThc.slice(0, 150).map((p) => ({
+    thc: p.thc,
+    units: p.units,
+    name: p.name,
+  }));
+
+  const filtered = enriched.filter(
+    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Insight corrélation */}
+      <div className="section-card" style={{ padding: "18px 24px" }}>
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+              Corrélation THC × unités vendues
+            </div>
+            <div className="text-2xl font-bold text-chanv-terre">
+              {r === null ? "—" : r.toFixed(2)}
+              <span className="text-sm font-medium text-slate-500 ml-2">({corrLabel})</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+              Produits enrichis
+            </div>
+            <div className="text-2xl font-bold text-chanv-terre">
+              {withThc.length}
+              <span className="text-sm font-medium text-slate-500 ml-2">/ {enriched.length} ({matchRate} %)</span>
+            </div>
+          </div>
+        </div>
+        {matchRate < 60 && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 mb-0">
+            ⚠️ Seuls {matchRate} % des produits ont un THC connu dans DB-Products-Master — la
+            corrélation est indicative. Complétez le référentiel pour affiner.
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Nuage THC vs ventes */}
+        <ChartCard title="🌿 THC (%) × unités vendues">
+          <ResponsiveContainer width="100%" height={320}>
+            <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
+              <XAxis
+                type="number" dataKey="thc" name="THC" unit="%"
+                tick={{ fontSize: 11 }} domain={[0, "dataMax + 2"]}
+                label={{ value: "THC (%)", position: "insideBottom", offset: -15, fontSize: 11 }}
+              />
+              <YAxis type="number" dataKey="units" name="Unités" tick={{ fontSize: 11 }} />
+              <ZAxis range={[40, 40]} />
+              <Tooltip
+                cursor={{ strokeDasharray: "3 3" }}
+                formatter={(v: number, n: string) => [n === "THC" ? `${v}%` : formatNum(v), n]}
+                labelFormatter={() => ""}
+                content={({ payload }) =>
+                  payload && payload.length ? (
+                    <div className="bg-white border border-black/10 rounded-lg px-3 py-2 text-xs shadow">
+                      <div className="font-semibold">{payload[0].payload.name}</div>
+                      <div>THC : {payload[0].payload.thc}%</div>
+                      <div>Unités : {formatNum(payload[0].payload.units)}</div>
+                    </div>
+                  ) : null
+                }
+              />
+              <Scatter data={scatter} fill="#6B8E23" fillOpacity={0.6} />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Ventes par tranche de THC */}
+        <ChartCard title="📊 Unités vendues par tranche de THC">
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={bands}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip
+                formatter={(v: number, n: string) => [n === "units" ? formatNum(v) : v, n === "units" ? "Unités" : "Produits"]}
+              />
+              <Bar dataKey="units" fill="#6B8E23" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Table enrichie */}
+      <div className="section-card" style={{ padding: "24px" }}>
+        <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+            Produits enrichis THC / CBD ({formatNum(filtered.length)})
+          </h3>
+          <input
+            type="search"
+            placeholder="Rechercher SKU ou nom…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="chanv-input text-sm"
+            style={{ maxWidth: 260 }}
+          />
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table className="chanv-table">
+            <thead>
+              <tr>
+                <th>Produit (FR)</th>
+                <th>SKU</th>
+                <th>Catégorie</th>
+                <th style={{ textAlign: "right" }}>THC</th>
+                <th style={{ textAlign: "right" }}>CBD</th>
+                <th style={{ textAlign: "right" }}>Unités</th>
+                <th style={{ textAlign: "right" }}>Stores</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, 100).map((p) => (
+                <tr key={p.sku}>
+                  <td className="font-medium">{p.name}</td>
+                  <td className="text-xs text-slate-400 font-mono">{p.sku}</td>
+                  <td>{p.category || "—"}</td>
+                  <td style={{ textAlign: "right" }}>{p.thc !== null ? `${p.thc}%` : "—"}</td>
+                  <td style={{ textAlign: "right" }}>{p.cbd !== null ? `${p.cbd}%` : "—"}</td>
+                  <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.units)}</td>
+                  <td style={{ textAlign: "right" }}>{p.storeCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
