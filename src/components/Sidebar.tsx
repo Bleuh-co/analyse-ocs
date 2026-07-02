@@ -22,6 +22,7 @@ export function Sidebar() {
     const links: Array<{ label: string; icon: string; href: string; mobileOnly?: boolean }> = [
       { label: "Dashboard", icon: "📊", href: "/dashboard", mobileOnly: true },
       { label: "Marketing", icon: "📣", href: "/actions-marketing", mobileOnly: true },
+      { label: "Sheets", icon: "📑", href: "/sheets", mobileOnly: true },
       { label: "Importer", icon: "📤", href: "/upload", mobileOnly: true },
       { label: "Stores", icon: "🏪", href: "/stores", mobileOnly: true },
     ];

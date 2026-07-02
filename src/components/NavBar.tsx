@@ -14,6 +14,7 @@ function cn(...classes: (string | false | undefined | null)[]) {
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/actions-marketing", label: "Marketing", icon: "📣" },
+  { href: "/sheets", label: "Sheets", icon: "📑" },
   { href: "/upload", label: "Importer", icon: "📤" },
   { href: "/stores", label: "Stores", icon: "🏪" },
 ];
