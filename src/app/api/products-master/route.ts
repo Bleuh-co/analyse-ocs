@@ -31,6 +31,8 @@ export async function GET() {
 
       return {
         sku: findCol(["SKU", "sku"]),
+        // SKU côté détaillant (ex. "111049_14g" pour OCS) — clé de jointure ventes
+        retailerSku: findCol(["Retailer SKU"]),
         gtin12: findCol(["GTIN-12", "GTIN12", "gtin12"]),
         gtin14: findCol(["GTIN-14", "GTIN14", "gtin14"]),
         name: findCol(["Nom", "Name", "Produit", "Product"]),

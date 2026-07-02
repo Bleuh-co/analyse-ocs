@@ -108,10 +108,11 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: "Les unités du dashboard ne correspondent pas au fichier brut ?",
     a: (
       <>
-        Le dashboard <strong>ignore les stores archivés</strong> (4 mois sans mise à jour) et
-        les stores inconnus. Il agrège aussi seulement les produits <em>matchés</em> et écrits
-        en base. Un écart avec le xlsx brut est donc normal si des lignes étaient non matchées
-        ou si des stores sont archivés.
+        C'est attendu, pour trois raisons : (1) l'app conserve la{" "}
+        <strong>dernière commande connue</strong> par magasin × produit — un nouvel import
+        remplace l'état précédent de la même paire, il ne s'additionne pas ; (2) le dashboard{" "}
+        <strong>ignore les stores marqués archivés</strong> et les stores inconnus ; (3) seules
+        les lignes <em>matchées</em> et confirmées sont écrites en base.
       </>
     ),
   },
@@ -140,9 +141,22 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: "Puis-je modifier un magasin ou une donnée sans être admin ?",
     a: (
       <>
-        Oui pour la plupart des écritures : le rôle <strong>gestionnaire</strong> peut importer,
-        créer et éditer des stores et éditer les Sheets CRM. Seul l'<strong>admin</strong> peut{" "}
-        <strong>supprimer</strong> un store. Le rôle <strong>viewer</strong> est en lecture seule.
+        Non : actuellement, toutes les écritures (import, création / édition / suppression de
+        stores, édition des Sheets CRM) exigent le rôle <strong>administrateur</strong>. Le
+        rôle <strong>membre</strong> (grades Hub « Consulter » et « Gestionnaire ») est en
+        lecture seule. Contactez un administrateur pour faire évoluer votre accès.
+      </>
+    ),
+  },
+  {
+    q: "Que signifie « store archivé » et « store actif » ?",
+    a: (
+      <>
+        Un store est <strong>archivé</strong> quand un administrateur le marque comme tel
+        (champ <code>archived</code>) — il est alors exclu des dashboards. Le KPI «&nbsp;stores
+        actifs&nbsp;» applique en plus un seuil informatif : un store sans mise à jour depuis{" "}
+        <strong>plus de 4 mois</strong> n'est plus compté comme actif, même s'il n'est pas
+        formellement archivé.
       </>
     ),
   },
@@ -281,16 +295,22 @@ export default function AidePage() {
               </thead>
               <tbody>
                 <tr>
-                  <td className="font-semibold">👁️ Viewer</td>
-                  <td>Consulter dashboard, stores, historique (lecture seule)</td>
+                  <td className="font-semibold">👁️ Membre</td>
+                  <td>
+                    Consulter : dashboard, stores, sheets, historique (lecture seule).
+                    Correspond aux grades Hub « Consulter » et « Gestionnaire ».
+                  </td>
                 </tr>
                 <tr>
-                  <td className="font-semibold">🔧 Gestionnaire</td>
-                  <td>Tout le viewer + importer, créer / éditer des stores, éditer les Sheets CRM</td>
+                  <td className="font-semibold">⭐ Administrateur</td>
+                  <td>
+                    Tout le membre + importer des fichiers, créer / éditer / supprimer des
+                    stores, éditer les Sheets CRM, gérer les actions marketing
+                  </td>
                 </tr>
                 <tr>
-                  <td className="font-semibold">⭐ Admin</td>
-                  <td>Tout le gestionnaire + supprimer des stores</td>
+                  <td className="font-semibold">👑 Super Administrateur</td>
+                  <td>Accès complet</td>
                 </tr>
               </tbody>
             </table>
@@ -332,7 +352,9 @@ export default function AidePage() {
             </Card>
             <Card title="3. Rapprochement (matching) avec vos magasins">
               Chaque ligne est comparée aux stores existants via l'<strong>index de codes
-              postaux</strong>. Trois statuts possibles :
+              postaux</strong>. Si plusieurs magasins partagent le même code postal,
+              l'adresse (rue) départage — à défaut, le premier candidat est retenu.
+              Trois statuts possibles :
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="rounded-full bg-green-100 text-green-800 px-3 py-1 text-xs font-semibold">
                   matched — rattachée à un magasin
@@ -351,6 +373,13 @@ export default function AidePage() {
               opérations) et un journal d'import est conservé.
             </Card>
           </div>
+          <Callout variant="warn">
+            ⚠️ <strong>Important — donnée conservée :</strong> les fichiers OCS sont des extraits
+            hebdomadaires. Pour chaque <strong>magasin × produit</strong>, l'app conserve la{" "}
+            <strong>dernière commande connue</strong> (unités + date) : un nouvel import
+            remplace l'état précédent de la même paire, il ne s'y additionne pas. Les lignes
+            « Total » et « Applied filters » en fin de fichier sont automatiquement ignorées.
+          </Callout>
           <Callout variant="tip">
             💡 Astuce : si beaucoup de lignes sont <code>unmatched</code>, créez d'abord les
             magasins manquants dans <strong>Stores</strong> (avec leur code postal), puis
@@ -366,13 +395,20 @@ export default function AidePage() {
             dates s'appliquent avant agrégation.
           </p>
 
+          <Callout variant="warn">
+            ⚠️ Toutes les « unités » ci-dessous portent sur la{" "}
+            <strong>dernière commande connue par magasin × produit</strong> (voir section
+            Import). Ce sont des indicateurs de l'activité récente, pas un cumul historique
+            complet des ventes.
+          </Callout>
+
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
             Par produit
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Unités vendues" formula="Σ units_sold" note="Somme sur toutes les lignes du produit." />
-            <Formula label="Magasins acheteurs" formula="count(distinct store_id)" note="Nombre de magasins distincts ayant commandé ce SKU." />
-            <Formula label="Première / dernière commande" formula="min(order_date) · max(order_date)" />
+            <Formula label="Unités vendues" formula="Σ units_sold" note="Somme, sur tous les magasins, des unités de la dernière commande connue." />
+            <Formula label="Magasins acheteurs" formula="count(distinct store_id)" note="Nombre de magasins distincts ayant déjà commandé ce SKU." />
+            <Formula label="Première / dernière commande" formula="min · max (last_order_date)" note="Bornes sur les dernières commandes connues par magasin." />
             <Formula label="Catégorie / marque" formula="depuis la ligne OCS ou Products Master" />
           </div>
 
@@ -380,25 +416,35 @@ export default function AidePage() {
             Par magasin
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Unités totales" formula="Σ units_sold" note="Somme des unités commandées par le magasin." />
+            <Formula label="Unités totales" formula="Σ units_sold" note="Somme des dernières commandes connues, tous produits du magasin." />
             <Formula label="SKU distincts" formula="count(distinct sku)" note="Diversité de l'assortiment commandé." />
-            <Formula label="Première / dernière commande" formula="min · max (order_date)" />
+            <Formula label="Première / dernière commande" formula="min · max (last_order_date)" />
           </div>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
             Séries temporelles & répartitions
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Par mois" formula="group by order_date[YYYY-MM]" note="Unités sommées par mois calendaire." />
-            <Formula label="Par jour de semaine" formula="group by weekday(order_date)" note="Dim → Sam, pour repérer les jours de commande." />
+            <Formula label="Par mois" formula="group by last_order_date[YYYY-MM]" note="Unités groupées par mois de la dernière commande connue." />
+            <Formula label="Par jour de semaine" formula="group by weekday(last_order_date)" note="Dim → Sam, pour repérer les jours de commande." />
             <Formula label="Par région" formula="Σ units_sold group by region" />
             <Formula label="Par catégorie" formula="Σ units_sold group by category" />
           </div>
           <Callout variant="info">
             Toutes les agrégations sont recalculées à chaque chargement à partir d'une seule
             requête <code>collectionGroup</code> sur les produits — les chiffres reflètent
-            toujours l'état courant de la base.
+            toujours l'état courant de la base. Les dates héritées de l'ancien système
+            (numéros de série Excel) sont automatiquement converties.
           </Callout>
+
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
+            Onglet Profil (THC/CBD)
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Formula label="Jointure référentiel" formula="GTIN-12, sinon Retailer SKU" note="Chaque produit vendu est relié à DB-Products-Master par son code GTIN." />
+            <Formula label="THC / CBD" formula="point médian de la plage" note="« 25-31 » → 28 % ; « N/A » → non renseigné." />
+            <Formula label="Corrélation" formula="Pearson (THC × unités)" note="Indicative : ne prouve pas de causalité." />
+          </div>
         </Section>
 
         {/* 5. Marketing & impact */}
@@ -425,6 +471,12 @@ export default function AidePage() {
             <Formula label="A réagi ?" formula="unités_après > 0" />
             <Formula label="Temps de réaction" formula="jours entre l'action et la 1ʳᵉ commande" />
           </div>
+          <Callout variant="warn">
+            ⚠️ Le calcul repose sur la <strong>dernière commande connue</strong> par produit :
+            si le magasin recommande après l'action, sa commande d'avant est remplacée en base
+            et « avant » peut être sous-estimé. Interprétez le lift comme un{" "}
+            <strong>signal de réaction</strong>, pas comme une mesure comptable exacte.
+          </Callout>
         </Section>
 
         {/* 6. Google Sheets */}
@@ -435,7 +487,7 @@ export default function AidePage() {
             classeurs est accessible (protection contre les accès non prévus).
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Card title="✏️ Édition (gestionnaire)">
+            <Card title="✏️ Édition (administrateur)">
               Cliquez une cellule pour la modifier. Historique et Segmentation sont éditables ;
               Products Master est en lecture seule.
             </Card>

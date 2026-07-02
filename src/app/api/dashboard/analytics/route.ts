@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth-server";
 import { adminDb } from "@/lib/firebase-admin";
+import { coerceToIsoDate } from "@/lib/ocs-parser";
 
 export const runtime = "nodejs";
 
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
       string,
       {
         sku: string;
+        gtin: string;
         name: string;
         category: string;
         brand: string;
@@ -114,10 +116,13 @@ export async function GET(req: NextRequest) {
 
       const p = prodDoc.data();
       const units = Number(p.units_sold) || 0;
-      const orderDate = toStr(p.last_order_date);
+      // Normalise ISO / serial Excel (legacy Ontario-Sales-Data) / Timestamp
+      const orderDate = coerceToIsoDate(p.last_order_date);
       const region = toStr(p.region) || storeRegion;
       const category = toStr(p.category) || "Inconnu";
       const sku = toStr(p.sku) || prodDoc.id;
+      // L'ID du doc produit est le GTIN-12 (clé de jointure vers DB-Products-Master)
+      const gtin = toStr(p.gtin) || prodDoc.id;
 
       // Filtre par date
       if (fromDate && orderDate < fromDate) continue;
@@ -135,6 +140,7 @@ export async function GET(req: NextRequest) {
       } else {
         productMap.set(sku, {
           sku,
+          gtin,
           name: toStr(p.name) || sku,
           category,
           brand: toStr(p.brand),
@@ -188,6 +194,7 @@ export async function GET(req: NextRequest) {
     const byProduct = Array.from(productMap.values())
       .map((p) => ({
         sku: p.sku,
+        gtin: p.gtin,
         name: p.name,
         category: p.category,
         brand: p.brand,

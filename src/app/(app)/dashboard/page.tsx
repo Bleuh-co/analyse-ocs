@@ -10,7 +10,7 @@ import {
 
 /* ── Types ────────────────────────────────────────── */
 interface Totals { totalUnits: number; totalLines: number; totalProducts: number; totalStores: number }
-interface ProductRow { sku: string; name: string; category: string; brand: string; totalUnits: number; storeCount: number; firstOrder: string | null; lastOrder: string | null }
+interface ProductRow { sku: string; gtin: string; name: string; category: string; brand: string; totalUnits: number; storeCount: number; firstOrder: string | null; lastOrder: string | null }
 interface StoreRow { id: string; name: string; city: string; region: string; totalUnits: number; skuCount: number }
 interface MonthRow { month: string; units: number }
 interface DayRow { label: string; units: number }
@@ -19,8 +19,23 @@ interface CategoryRow { category: string; units: number }
 interface AnalyticsData { byProduct: ProductRow[]; byStore: StoreRow[]; byMonth: MonthRow[]; byDay: DayRow[]; byRegion: RegionRow[]; byCategory: CategoryRow[]; regions: string[]; totals: Totals }
 
 /* Profil produit (THC/CBD) depuis DB-Products-Master */
-interface MasterProduct { sku: string; nameFr: string; name: string; category: string; thc: string; cbd: string }
-type MasterMap = Record<string, { thc: number | null; cbd: number | null; nameFr: string; category: string }>;
+interface MasterProduct { sku: string; retailerSku: string; gtin12: string; gtin14: string; nameFr: string; name: string; category: string; thc: string; cbd: string }
+interface MasterEntry { thc: number | null; cbd: number | null; nameFr: string; category: string }
+/** Deux index : par GTIN-12 (clé primaire) et par Retailer SKU normalisé (fallback) */
+interface MasterMap { byGtin: Record<string, MasterEntry>; bySku: Record<string, MasterEntry> }
+
+/** Normalise un SKU OCS/retailer : "111049_14g___" → "111049_14g" */
+function normalizeRetailerSku(sku: string): string {
+  return sku.trim().toLowerCase().replace(/_+$/, "");
+}
+
+/** GTIN-14 → GTIN-12 (strip "00" de tête) pour aligner avec l'ID des docs produits */
+function gtinTo12(g: string): string {
+  const s = g.replace(/\D/g, "");
+  if (s.length === 14 && s.startsWith("00")) return s.substring(2);
+  if (s.length === 13 && s.startsWith("0")) return s.substring(1);
+  return s;
+}
 
 const COLORS = ["#C4A265", "#8B6914", "#A0522D", "#6B8E23", "#4682B4", "#9370DB", "#CD853F", "#D2691E", "#BC8F8F", "#8FBC8F"];
 const TABS = ["Aperçu", "Produits", "Stores", "Temps", "Profil"] as const;
@@ -30,15 +45,19 @@ function formatNum(n: number): string {
   return new Intl.NumberFormat("fr-CA").format(n);
 }
 
-/** Parse une valeur de potency ("18,5 %", "20", "0.21") en pourcentage numérique, ou null. */
+/**
+ * Parse une valeur de potency du référentiel en % numérique, ou null.
+ * Formats réels de DB-Products-Master : "25-31" (plage → point médian),
+ * "0,1-1" (virgule décimale), "40%", "N/A".
+ */
 function parsePotency(raw: string): number | null {
   if (!raw) return null;
-  const cleaned = raw.replace(/[^0-9.,]/g, "").replace(",", ".");
-  if (!cleaned) return null;
-  const n = parseFloat(cleaned);
-  if (isNaN(n)) return null;
-  // Certaines sources stockent une fraction (0.21 = 21 %) — on la ramène en %.
-  return n > 0 && n <= 1 ? n * 100 : n;
+  const nums = (raw.replace(/,/g, ".").match(/\d+(?:\.\d+)?/g) || [])
+    .map(Number)
+    .filter((n) => !isNaN(n) && n <= 100); // garde-fou valeurs aberrantes
+  if (!nums.length) return null; // "N/A", texte…
+  const mid = nums.length >= 2 ? (nums[0] + nums[1]) / 2 : nums[0];
+  return Math.round(mid * 10) / 10;
 }
 
 /** Coefficient de corrélation de Pearson entre deux séries de même longueur. */
@@ -66,21 +85,24 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [master, setMaster] = useState<MasterMap | null>(null);
 
-  // Charger le référentiel produits (THC/CBD/nom FR) une seule fois
+  // Charger le référentiel produits (THC/CBD/nom) une seule fois.
+  // Jointure : GTIN-12 (= ID des docs produits) en priorité, Retailer SKU en fallback.
   useEffect(() => {
     fetch("/api/products-master")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d?.products) return;
-        const map: MasterMap = {};
+        const map: MasterMap = { byGtin: {}, bySku: {} };
         (d.products as MasterProduct[]).forEach((p) => {
-          if (!p.sku) return;
-          map[p.sku.trim().toUpperCase()] = {
+          const entry: MasterEntry = {
             thc: parsePotency(p.thc),
             cbd: parsePotency(p.cbd),
             nameFr: p.nameFr || p.name || "",
             category: p.category || "",
           };
+          const g12 = gtinTo12(p.gtin12 || p.gtin14 || "");
+          if (g12) map.byGtin[g12] = entry;
+          if (p.retailerSku) map.bySku[normalizeRetailerSku(p.retailerSku)] = entry;
         });
         setMaster(map);
       })
@@ -465,10 +487,14 @@ function ProfileTab({
     );
   }
 
-  // Joindre les ventes par produit avec le profil THC/CBD du Products-Master
+  // Joindre les ventes par produit avec le profil THC/CBD du Products-Master.
+  // Clé primaire : GTIN-12 (ID des docs Firestore) ; fallback : Retailer SKU
+  // normalisé ("111049_14g___" côté OCS → "111049_14g" côté master).
   const enriched = data.byProduct
     .map((p) => {
-      const m = master[p.sku.trim().toUpperCase()];
+      const m =
+        master.byGtin[gtinTo12(p.gtin || "")] ??
+        master.bySku[normalizeRetailerSku(p.sku)];
       return {
         sku: p.sku,
         name: m?.nameFr || p.name,

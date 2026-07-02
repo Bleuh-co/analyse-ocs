@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, requireGestionnaire } from "@/lib/auth-server";
 import { adminDb } from "@/lib/firebase-admin";
+import { coerceToIsoDate } from "@/lib/ocs-parser";
 
 export const runtime = "nodejs";
 
@@ -60,7 +61,8 @@ export async function GET(_req: NextRequest, ctx: Params) {
 
     for (const pDoc of prodsSnap.docs) {
       const p = pDoc.data();
-      const orderDate = (p.last_order_date as string) || "";
+      // Normalise ISO / serial Excel (legacy) / Timestamp
+      const orderDate = coerceToIsoDate(p.last_order_date);
       const units = Number(p.units_sold) || 0;
 
       // Si on a un SKU cible, filtrer

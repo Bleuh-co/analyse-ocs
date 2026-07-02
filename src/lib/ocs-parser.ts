@@ -13,6 +13,7 @@
  */
 
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -195,6 +196,29 @@ export function parseChainAndBranch(storeName: string): {
 }
 
 /**
+ * Coerce n'importe quelle valeur de date stockée en Firestore vers ISO YYYY-MM-DD.
+ * Gère : string ISO, serial Excel (number ou string — legacy Ontario-Sales-Data),
+ * Date, Firestore Timestamp ({_seconds} ou .toDate()).
+ * Retourne "" si la valeur est inexploitable.
+ */
+export function coerceToIsoDate(val: unknown): string {
+  if (val == null || val === "") return "";
+  if (val instanceof Date) return val.toISOString().substring(0, 10);
+  if (typeof val === "object") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v = val as any;
+    if (typeof v.toDate === "function") return v.toDate().toISOString().substring(0, 10);
+    if ("_seconds" in v) return new Date(v._seconds * 1000).toISOString().substring(0, 10);
+    return "";
+  }
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}/.test(val)) return val.substring(0, 10);
+  // Serial Excel : plage plausible ~1954-2064 (20000–60000)
+  const n = Number(val);
+  if (!isNaN(n) && n >= 20000 && n <= 60000) return excelSerialToISO(n);
+  return "";
+}
+
+/**
  * Convertit un numéro de série de date Excel en string ISO 8601 (YYYY-MM-DD).
  * Excel serial 1 = 1900-01-01, mais avec le bug du "29 fév 1900" de Lotus 1-2-3.
  */
@@ -233,6 +257,166 @@ const COLUMN_MAP: Record<string, keyof OcsRawRow> = {
   "Item Barcode": "itemBarcode",
 };
 
+// ── Extraction des lignes (ExcelJS + fallback format OCS) ─────
+
+/** Décode les entités XML de base (&amp; &lt; &gt; &quot; &apos; &#xA; …). */
+function xmlUnescape(s: string): string {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+/** "A" → 0, "B" → 1, … "AA" → 26 */
+function colLettersToIndex(letters: string): number {
+  let idx = 0;
+  for (const ch of letters) idx = idx * 26 + (ch.charCodeAt(0) - 64);
+  return idx - 1;
+}
+
+/**
+ * Fallback parser pour les exports OCS (générés par OpenXML SDK .NET) :
+ * éléments préfixés (`<x:row>`) et lignes/cellules SANS attributs de référence
+ * (`r="A1"`), deux formes valides OOXML que ExcelJS ne sait pas lire.
+ * Retourne la grille brute (row-major) de la première feuille.
+ */
+async function parseXlsxRawGrid(buffer: Buffer): Promise<(string | number)[][]> {
+  const zip = await JSZip.loadAsync(buffer);
+
+  const sheetName = Object.keys(zip.files)
+    .filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n))
+    .sort()[0];
+  if (!sheetName) throw new Error("Aucune feuille trouvée dans le fichier xlsx");
+
+  // sharedStrings (souvent absent des exports OCS, mais géré par robustesse)
+  const shared: string[] = [];
+  const ssFile = zip.files["xl/sharedStrings.xml"];
+  if (ssFile) {
+    const ss = (await ssFile.async("string")).replace(/<(\/?)[A-Za-z0-9]+:/g, "<$1");
+    for (const si of ss.match(/<si>[\s\S]*?<\/si>/g) || []) {
+      const ts = si.match(/<t[^>]*>[\s\S]*?<\/t>/g) || [];
+      shared.push(
+        ts.map((t) => xmlUnescape(t.replace(/^<t[^>]*>/, "").replace(/<\/t>$/, ""))).join("")
+      );
+    }
+  }
+
+  // Normaliser les préfixes de namespace des éléments (<x:c → <c)
+  const xml = (await zip.files[sheetName].async("string")).replace(
+    /<(\/?)[A-Za-z0-9]+:/g,
+    "<$1"
+  );
+  const sheetData = xml.match(/<sheetData>([\s\S]*?)<\/sheetData>/)?.[1] ?? "";
+
+  const grid: (string | number)[][] = [];
+  const rowRe = /<row[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g;
+  let rowMatch: RegExpExecArray | null;
+  while ((rowMatch = rowRe.exec(sheetData))) {
+    const inner = rowMatch[1] || "";
+    const cells: (string | number)[] = [];
+    let colIdx = 0;
+    const cellRe = /<c([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    let cellMatch: RegExpExecArray | null;
+    while ((cellMatch = cellRe.exec(inner))) {
+      const attrs = cellMatch[1] || "";
+      const body = cellMatch[2] || "";
+      // Référence explicite ("B3") → position ; sinon colonne suivante
+      const ref = attrs.match(/\br="([A-Z]+)\d+"/);
+      if (ref) colIdx = colLettersToIndex(ref[1]);
+      const type = attrs.match(/\bt="(\w+)"/)?.[1] || "";
+
+      let val: string | number = "";
+      if (type === "inlineStr") {
+        const ts = body.match(/<t[^>]*>[\s\S]*?<\/t>/g) || [];
+        val = ts
+          .map((t) => xmlUnescape(t.replace(/^<t[^>]*>/, "").replace(/<\/t>$/, "")))
+          .join("");
+      } else {
+        const v = body.match(/<v[^>]*>([\s\S]*?)<\/v>/)?.[1] ?? "";
+        if (type === "s") val = shared[Number(v)] ?? "";
+        else if (type === "str" || type === "b") val = xmlUnescape(v);
+        else if (v !== "") {
+          const n = Number(v);
+          val = isNaN(n) ? xmlUnescape(v) : n;
+        }
+      }
+      cells[colIdx] = val;
+      colIdx++;
+    }
+    grid.push(cells);
+  }
+  return grid;
+}
+
+/**
+ * Extrait les lignes de données (header row 1 → objets clé/valeur).
+ * Essaie ExcelJS (xlsx standard), puis bascule sur le parser OCS
+ * si ExcelJS échoue ou ne trouve aucune ligne.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function extractRawRows(buffer: Buffer): Promise<Record<string, any>[]> {
+  // 1) ExcelJS — fichiers xlsx standards (Excel, Google Sheets…)
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    const worksheet = workbook.worksheets[0];
+
+    if (worksheet && worksheet.rowCount > 1) {
+      const headers: string[] = [];
+      worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        headers[colNumber] = String(cell.value || "").trim();
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawRows: Record<string, any>[] = [];
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const obj: Record<string, any> = {};
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          const key = headers[colNumber];
+          if (key) {
+            // Handle ExcelJS rich text / date objects
+            const v = cell.value;
+            if (v instanceof Date) {
+              obj[key] = v.toISOString().substring(0, 10);
+            } else if (typeof v === "object" && v !== null && "richText" in v) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              obj[key] = (v as any).richText.map((r: any) => r.text).join("");
+            } else {
+              obj[key] = v ?? "";
+            }
+          }
+        });
+        rawRows.push(obj);
+      });
+      if (rawRows.length > 0) return rawRows;
+    }
+  } catch {
+    // Format non supporté par ExcelJS (export OCS) → fallback ci-dessous
+  }
+
+  // 2) Fallback — format d'export OCS
+  const grid = await parseXlsxRawGrid(buffer);
+  if (grid.length <= 1) return [];
+  const headers = grid[0].map((h) => String(h ?? "").trim());
+  return grid
+    .slice(1)
+    .map((cells) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => {
+        if (h) obj[h] = cells[i] ?? "";
+      });
+      return obj;
+    })
+    .filter((o) => Object.values(o).some((v) => v !== "" && v != null));
+}
+
 // ── Pipeline principal ────────────────────────────────────────
 
 /**
@@ -243,49 +427,7 @@ export async function parseAndMatchOcsXlsx(
   existingStores: ExistingStore[],
   filename = "data.xlsx"
 ): Promise<ParseResult> {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
-  const worksheet = workbook.worksheets[0];
-
-  if (!worksheet || worksheet.rowCount <= 1) {
-    return {
-      filename,
-      totalRows: 0,
-      stats: { matched: 0, unmatched: 0, invalid: 0 },
-      rows: [],
-    };
-  }
-
-  // Extract headers from row 1, then build row objects
-  const headerRow = worksheet.getRow(1);
-  const headers: string[] = [];
-  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-    headers[colNumber] = String(cell.value || "").trim();
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawRows: Record<string, any>[] = [];
-  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber === 1) return; // skip header
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obj: Record<string, any> = {};
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      const key = headers[colNumber];
-      if (key) {
-        // Handle ExcelJS rich text / date objects
-        const v = cell.value;
-        if (v instanceof Date) {
-          obj[key] = v.toISOString().substring(0, 10);
-        } else if (typeof v === "object" && v !== null && "richText" in v) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          obj[key] = (v as any).richText.map((r: any) => r.text).join("");
-        } else {
-          obj[key] = v ?? "";
-        }
-      }
-    });
-    rawRows.push(obj);
-  });
+  const rawRows = await extractRawRows(buffer);
 
   if (rawRows.length === 0) {
     return {
@@ -323,9 +465,6 @@ export async function parseAndMatchOcsXlsx(
     const rawAddress = getValue(["Store Address", "store_address"]);
     const storeName = getValue(["Store Name", "store_name"]);
     const barcode = getValue(["Item Barcode", "item_barcode"]);
-    const rawOrderDate = row["Order Date"] ?? row["order_date"] ?? "";
-    const rawUnitsSold = row["Units Sold"] ?? row["units_sold"] ?? 0;
-
     // Parse l'adresse OCS
     const parsed = parseOCSAddress(rawAddress);
 
@@ -364,7 +503,7 @@ export async function parseAndMatchOcsXlsx(
     }
 
     const gtin12 = gtin14to12(barcode);
-    const orderDate = excelSerialToISO(rawOrderDate);
+    const orderDate = excelSerialToISO(row["Order Date"] ?? row["order_date"] ?? "");
 
     if (matchedStore) {
       const { chain } = parseChainAndBranch(matchedStore.name || "");
