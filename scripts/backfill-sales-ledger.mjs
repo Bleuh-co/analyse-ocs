@@ -39,8 +39,11 @@ function toIso(val) {
 const snap = await db.collectionGroup("products").get();
 console.log(`${snap.size} docs products trouvés`);
 
-let written = 0, skippedNoDate = 0, batch = db.batch(), ops = 0;
+let written = 0, skippedNoDate = 0, skippedForeign = 0, batch = db.batch(), ops = 0;
 for (const doc of snap.docs) {
+  // collectionGroup("products") attrape aussi les collections `products`
+  // d'autres apps (ex. top-level) — ne traiter que stores/{id}/products
+  if (!doc.ref.path.startsWith("stores/")) { skippedForeign++; continue; }
   const storeId = doc.ref.path.split("/")[1];
   const p = doc.data();
   const orderDate = toIso(p.last_order_date);
@@ -53,6 +56,7 @@ for (const doc of snap.docs) {
       sku: p.sku || "",
       name: p.name || "",
       category: p.category || "",
+      sub_category: p.sub_category || "",
       brand: p.brand || "",
       units_sold: Number(p.units_sold) || 0,
       order_date: orderDate,
@@ -67,4 +71,6 @@ for (const doc of snap.docs) {
   if (ops >= 499) { await batch.commit(); batch = db.batch(); ops = 0; }
 }
 if (ops > 0) await batch.commit();
-console.log(`✅ ${written} entrées de journal écrites, ${skippedNoDate} sans date ignorées`);
+console.log(
+  `✅ ${written} entrées écrites, ${skippedNoDate} sans date, ${skippedForeign} hors stores/ ignorées`
+);

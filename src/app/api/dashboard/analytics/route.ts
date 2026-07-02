@@ -126,7 +126,9 @@ export async function GET(req: NextRequest) {
       // Normalise ISO / serial Excel (legacy Ontario-Sales-Data) / Timestamp
       const orderDate = coerceToIsoDate(useLedger ? p.order_date : p.last_order_date);
       const region = toStr(p.region) || storeRegion;
-      const category = toStr(p.category) || "Inconnu";
+      // Sub Category OCS (Dried Flower, Vapes, Concentrates…) — la Category
+      // OCS ne contient que "Cannabis"/"Accessories", sans intérêt analytique
+      const category = toStr(p.sub_category) || toStr(p.category) || "Inconnu";
       const sku = toStr(p.sku) || prodDoc.id;
       // GTIN-12 : champ explicite (ledger) ou ID du doc produit (snapshot) —
       // clé de jointure vers DB-Products-Master

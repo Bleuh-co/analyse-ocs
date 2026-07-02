@@ -432,7 +432,7 @@ export default function AidePage() {
             <Formula label="Par mois" formula="group by last_order_date[YYYY-MM]" note="Unités groupées par mois de la dernière commande connue." />
             <Formula label="Par jour de semaine" formula="group by weekday(last_order_date)" note="Dim → Sam, pour repérer les jours de commande." />
             <Formula label="Par région" formula="Σ units_sold group by region" />
-            <Formula label="Par catégorie" formula="Σ units_sold group by category" />
+            <Formula label="Par catégorie" formula="Σ units_sold group by sub_category" note="Sous-catégorie OCS : Dried Flower, Vapes, Concentrates, Pre-Rolled…" />
           </div>
           <Callout variant="info">
             Toutes les agrégations sont recalculées à chaque chargement à partir d'une seule

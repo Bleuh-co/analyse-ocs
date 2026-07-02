@@ -278,7 +278,7 @@ function OverviewTab({ data, loading }: { data: AnalyticsData | null; loading: b
       </ChartCard>
 
       {/* Par catégorie */}
-      <ChartCard title="📂 Ventes par catégorie">
+      <ChartCard title="📂 Ventes par catégorie de produit">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.byCategory.slice(0, 8)}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />

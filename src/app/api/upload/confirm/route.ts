@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
               sku: row.raw.sku,
               name: row.raw.itemName,
               category: row.raw.category,
+              sub_category: row.raw.subCategory || "",
               brand: row.raw.brand,
               units_sold: row.raw.unitsSold || 0,
               order_date: row.raw.orderDate,
