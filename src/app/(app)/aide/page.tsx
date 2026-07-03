@@ -108,11 +108,9 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     q: "Les unités du dashboard ne correspondent pas au fichier brut ?",
     a: (
       <>
-        C'est attendu, pour trois raisons : (1) le dashboard{" "}
+        C'est attendu, pour deux raisons : (1) le dashboard{" "}
         <strong>ignore les stores marqués archivés</strong> et les stores inconnus ; (2) seules
-        les lignes <em>matchées</em> et confirmées sont écrites en base ; (3) l'historique
-        antérieur au journal cumulatif (juillet 2026) est partiel — seule la dernière commande
-        connue de chaque magasin × produit a pu être préservée.
+        les lignes <em>matchées</em> et confirmées sont écrites en base.
       </>
     ),
   },
@@ -401,9 +399,9 @@ export default function AidePage() {
 
           <Callout variant="info">
             ℹ️ Les agrégations utilisent le <strong>journal cumulatif des ventes</strong> :
-            chaque commande importée compte une fois, à sa date réelle. L'historique antérieur
-            au journal (initialisé en juillet 2026) provient de la dernière commande connue par
-            magasin × produit — il est donc partiel avant cette date.
+            chaque commande importée compte une fois, à sa date réelle. L'historique couvre{" "}
+            <strong>février 2025 à aujourd'hui</strong> (import du document Bleuh_Sales_Data +
+            imports hebdomadaires).
           </Callout>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
@@ -477,9 +475,9 @@ export default function AidePage() {
           </div>
           <Callout variant="info">
             ℹ️ Le calcul s'appuie sur le <strong>journal cumulatif des ventes</strong> : chaque
-            commande compte à sa date réelle. Pour les actions antérieures au journal
-            (juillet 2026), la fenêtre « avant » peut être incomplète — interprétez alors le
-            lift comme un signal de réaction plutôt qu'une mesure exacte.
+            commande compte à sa date réelle, avec un historique remontant à février 2025 —
+            les fenêtres avant/après sont donc complètes pour toute action postérieure à
+            mars 2025.
           </Callout>
         </Section>
 
