@@ -5,8 +5,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { allowedDomains } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export default function LoginPage() {
+  const t = useT();
   const { session, signInWithGoogle, loading } = useAuth();
   const router = useRouter();
   const [ssoChecking, setSsoChecking] = useState(false);
@@ -86,12 +88,12 @@ export default function LoginPage() {
           <div className="bg-chanv-fibre p-5 rounded-chanv shadow-chanv-soft mb-5">
             <Image src="/favicon.svg" alt="Chanv" width={64} height={64} />
           </div>
-          <h1 className="text-2xl font-bold text-chanv-terre">Analyse OCS</h1>
+          <h1 className="text-2xl font-bold text-chanv-terre">{t("login.title")}</h1>
           <p className="text-[11px] uppercase tracking-[3px] text-chanv-terre/60 mt-2">
-            Groupe Chanv
+            {t("app.subtitle")}
           </p>
           <p className="text-sm text-slate-500 mt-5 leading-relaxed">
-            Connexion réservée aux domaines&nbsp;
+            {t("login.domains")}
             <span className="font-semibold text-chanv-terre">
               {allowedDomains().join(", ")}
             </span>
@@ -102,14 +104,10 @@ export default function LoginPage() {
           disabled={loading || ssoChecking}
           className="btn-primary w-full py-4 text-base"
         >
-          {ssoChecking
-            ? "Connexion SSO en cours..."
-            : loading
-            ? "Chargement..."
-            : "Se connecter avec Google"}
+          {ssoChecking ? t("login.sso") : loading ? t("login.loading") : t("login.signIn")}
         </button>
         <p className="text-xs text-slate-400 text-center mt-6 leading-relaxed">
-          Une session s&apos;ouvrira pour 5 jours.
+          {t("login.session5days")}
         </p>
       </div>
     </main>

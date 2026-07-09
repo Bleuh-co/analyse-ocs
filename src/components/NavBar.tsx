@@ -3,27 +3,61 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useGandalf } from "@bleuh-co/gandalf-sdk-next/client";
 import { useAuth } from "./AuthProvider";
 import { Sidebar } from "./Sidebar";
-import { ROLE_LABELS } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 function cn(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
+// « masqué ≠ perdu » : la même liste alimente la barre standalone ET la nav
+// d'embed — aucun lien ne disparaît en mode embarqué.
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/actions-marketing", label: "Marketing", icon: "📣" },
-  { href: "/sheets", label: "Sheets", icon: "📑" },
-  { href: "/upload", label: "Importer", icon: "📤" },
-  { href: "/stores", label: "Stores", icon: "🏪" },
-  { href: "/aide", label: "Aide", icon: "📖" },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: "📊" },
+  { href: "/actions-marketing", labelKey: "nav.marketing", icon: "📣" },
+  { href: "/sheets", labelKey: "nav.sheets", icon: "📑" },
+  { href: "/upload", labelKey: "nav.upload", icon: "📤" },
+  { href: "/stores", labelKey: "nav.stores", icon: "🏪" },
+  { href: "/aide", labelKey: "nav.help", icon: "📖" },
 ];
 
 export function NavBar() {
   const { session } = useAuth();
   const pathname = usePathname();
+  const { embedded } = useGandalf();
+  const t = useT();
   if (!session) return null;
+
+  if (embedded) {
+    // Contrat d'embed, morceau 3 — nav interne d'embed, modèle xero/elearning
+    // (#gandalf-embed-nav) : barre claire sticky sur fond parchemin, pastilles
+    // blanches arrondies, pastille active or. Le hub fournit logo/titre/profil/
+    // logout — on ne recrée rien de redondant (pas de widget/menu Gandalf).
+    return (
+      <nav className="sticky top-0 z-40 flex flex-wrap items-center gap-1.5 bg-[#F4EFE3] px-4 pb-1 pt-3">
+        {NAV_LINKS.map((link) => {
+          const active = pathname === link.href || pathname?.startsWith(link.href + "/");
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-[12.5px] font-semibold transition-colors",
+                active
+                  ? "border-[#A8863F] bg-[#A8863F] font-bold text-white"
+                  : "border-black/10 bg-white text-black/60 hover:border-[#A8863F]/40 hover:text-[#282828]"
+              )}
+            >
+              <span aria-hidden>{link.icon}</span>
+              <span>{t(link.labelKey)}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
 
   return (
     <header className="chanv-header">
@@ -31,7 +65,7 @@ export function NavBar() {
         <a
           href={process.env.NEXT_PUBLIC_HUB_URL || "https://chanv-apps-hub-271227085398.northamerica-northeast1.run.app/"}
           className="chanv-logo-wrapper flex items-center"
-          title="Retour au Hub"
+          title={t("nav.backToHub")}
         >
           <Image
             src="/logo-groupe-chanv.svg"
@@ -43,9 +77,9 @@ export function NavBar() {
           />
         </a>
         <div>
-          <h1 className="text-xl font-bold m-0 leading-tight">Données OCS</h1>
+          <h1 className="text-xl font-bold m-0 leading-tight">{t("app.title")}</h1>
           <p className="text-[10px] md:text-[11px] uppercase tracking-[3px] opacity-70 mt-1 m-0">
-            Groupe Chanv
+            {t("app.subtitle")}
           </p>
         </div>
 
@@ -62,7 +96,7 @@ export function NavBar() {
               )}
             >
               <span>{link.icon}</span>
-              <span className="hidden sm:inline">{link.label}</span>
+              <span className="hidden sm:inline">{t(link.labelKey)}</span>
             </Link>
           ))}
         </nav>
@@ -73,7 +107,7 @@ export function NavBar() {
               {session.displayName || session.email}
             </div>
             <div className="text-[11px] text-white/60 uppercase tracking-wider whitespace-nowrap">
-              {ROLE_LABELS[session.role]}
+              {t(`role.${session.role}`)}
             </div>
           </div>
           <Sidebar />
@@ -82,4 +116,3 @@ export function NavBar() {
     </header>
   );
 }
-

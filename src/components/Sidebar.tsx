@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useAuth } from "./AuthProvider";
 import { ROLE_LABELS } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 
 const HUB_URL = process.env.NEXT_PUBLIC_HUB_URL || "https://chanv-apps-hub-271227085398.northamerica-northeast1.run.app";
 
@@ -13,6 +14,7 @@ const HUB_URL = process.env.NEXT_PUBLIC_HUB_URL || "https://chanv-apps-hub-27122
  * with user info + app-specific navigation links.
  */
 export function Sidebar() {
+  const t = useT();
   const { session, firebaseUser, signOut } = useAuth();
 
   const isAdmin = session?.role === "admin" || session?.role === "superadmin";
@@ -20,15 +22,15 @@ export function Sidebar() {
   // Build app-specific links for the widget
   const getLinks = useCallback(() => {
     const links: Array<{ label: string; icon: string; href: string; mobileOnly?: boolean }> = [
-      { label: "Dashboard", icon: "📊", href: "/dashboard", mobileOnly: true },
-      { label: "Marketing", icon: "📣", href: "/actions-marketing", mobileOnly: true },
-      { label: "Sheets", icon: "📑", href: "/sheets", mobileOnly: true },
-      { label: "Importer", icon: "📤", href: "/upload", mobileOnly: true },
-      { label: "Stores", icon: "🏪", href: "/stores", mobileOnly: true },
-      { label: "Aide", icon: "📖", href: "/aide", mobileOnly: true },
+      { label: t("nav.dashboard"), icon: "📊", href: "/dashboard", mobileOnly: true },
+      { label: t("nav.marketing"), icon: "📣", href: "/actions-marketing", mobileOnly: true },
+      { label: t("nav.sheets"), icon: "📑", href: "/sheets", mobileOnly: true },
+      { label: t("nav.upload"), icon: "📤", href: "/upload", mobileOnly: true },
+      { label: t("nav.stores"), icon: "🏪", href: "/stores", mobileOnly: true },
+      { label: t("nav.help"), icon: "📖", href: "/aide", mobileOnly: true },
     ];
     return links;
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
   // Initialize GANDALF widget once session is ready
   const initDone = useRef(false);
@@ -101,7 +103,7 @@ export function Sidebar() {
       id="avatar-burger-btn"
       onClick={() => (window as any).GandalfWidget?.toggle()}
       className="avatar-burger-btn relative"
-      title="Menu"
+      title={t("nav.menu")}
     >
       <div className="avatar-burger-inner">
         {session.photoURL && (
