@@ -751,3 +751,282 @@ h4 {
   background: rgba(221, 203, 164, 0.06);
 }
 
+
+/* ============================================================
+   MODE SOMBRE GANDALF — html.gandalf-dark (posé par le SDK/hub)
+   Palette dark du hub : fond #201d19, surfaces #2b2823,
+   texte rgba(255,255,255,.92), bordures rgba(221,203,164,.14),
+   accent or #DDCBA4.
+   Append-only : aucune règle light modifiée. Les tokens Tailwind
+   (text-slate-*, bg-white, …) sont des littéraux compilés →
+   surcharges ciblées des classes réellement utilisées.
+   NB : --chanv-blanc et --chanv-terre ne sont PAS inversés
+   globalement — le header (fond terre, texte blanc) reste
+   identique. Modèle xero_photo_achat / elearning.
+   ============================================================ */
+
+html.gandalf-dark {
+  --chanv-fibre: rgba(221, 203, 164, 0.14);
+  --color-secondary-bg: rgba(255, 255, 255, 0.08);
+  --color-secondary-text: rgba(255, 255, 255, 0.65);
+  --color-secondary-hover: rgba(255, 255, 255, 0.14);
+  --color-placeholder: rgba(255, 255, 255, 0.45);
+  --color-disabled: rgba(255, 255, 255, 0.35);
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-bold: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+html.gandalf-dark,
+html.gandalf-dark body {
+  background-color: #201d19;
+  background-image: radial-gradient(rgba(221, 203, 164, 0.07) 1px, transparent 1px);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* --- Surfaces --- */
+html.gandalf-dark .card,
+html.gandalf-dark .section-card,
+html.gandalf-dark .kpi-card,
+html.gandalf-dark .data-table-wrapper,
+html.gandalf-dark .modal-card {
+  background: #2b2823;
+  border-color: rgba(221, 203, 164, 0.14);
+}
+html.gandalf-dark .chanv-header::after {
+  background: #201d19;
+}
+html.gandalf-dark .drop-zone {
+  background: rgba(221, 203, 164, 0.06);
+  border-color: rgba(221, 203, 164, 0.35);
+}
+html.gandalf-dark .drop-zone:hover,
+html.gandalf-dark .drop-zone--active {
+  border-color: #ddcba4;
+  background: rgba(221, 203, 164, 0.12);
+}
+
+/* --- Nav d'embed (pastilles) --- */
+html.gandalf-dark nav.sticky.bg-\[\#F4EFE3\] {
+  background: #201d19;
+}
+html.gandalf-dark nav.sticky .bg-white {
+  background: #2b2823;
+  border-color: rgba(221, 203, 164, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Formulaires --- */
+html.gandalf-dark .input,
+html.gandalf-dark .chanv-input,
+html.gandalf-dark .chanv-select {
+  background: #201d19;
+  border-color: rgba(221, 203, 164, 0.2);
+  color: rgba(255, 255, 255, 0.92);
+}
+html.gandalf-dark .input::placeholder,
+html.gandalf-dark .chanv-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+html.gandalf-dark .input:disabled {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* --- Textes secondaires --- */
+html.gandalf-dark .label,
+html.gandalf-dark .chanv-label,
+html.gandalf-dark .kpi-label,
+html.gandalf-dark .kpi-subtitle,
+html.gandalf-dark .data-table-count,
+html.gandalf-dark .data-table-page-info,
+html.gandalf-dark .drop-subtitle,
+html.gandalf-dark .data-table-empty {
+  color: rgba(255, 255, 255, 0.6);
+}
+html.gandalf-dark .kpi-value,
+html.gandalf-dark .drop-title {
+  color: rgba(255, 255, 255, 0.92);
+}
+html.gandalf-dark .text-chanv-terre {
+  color: #ddcba4;
+}
+html.gandalf-dark .text-chanv-terre\/60 {
+  color: rgba(221, 203, 164, 0.7);
+}
+html.gandalf-dark .text-slate-700,
+html.gandalf-dark .text-slate-600 {
+  color: rgba(255, 255, 255, 0.75);
+}
+html.gandalf-dark .text-slate-500 {
+  color: rgba(255, 255, 255, 0.6);
+}
+html.gandalf-dark .text-slate-400 {
+  color: rgba(255, 255, 255, 0.45);
+}
+html.gandalf-dark .text-black\/60 {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* --- Fonds utilitaires --- */
+html.gandalf-dark .bg-white {
+  background-color: #2b2823;
+}
+html.gandalf-dark .bg-white\/80,
+html.gandalf-dark .bg-white\/50 {
+  background-color: rgba(43, 40, 35, 0.8);
+}
+html.gandalf-dark .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+html.gandalf-dark .bg-chanv-fibre {
+  background-color: rgba(221, 203, 164, 0.12);
+}
+
+/* --- Tableaux de ventes (lisibilité) --- */
+html.gandalf-dark .data-table thead {
+  background: rgba(221, 203, 164, 0.1);
+}
+html.gandalf-dark .data-table th {
+  color: rgba(255, 255, 255, 0.6);
+}
+html.gandalf-dark .data-table th.sortable:hover {
+  color: #ddcba4;
+}
+html.gandalf-dark .data-table td {
+  border-bottom-color: rgba(221, 203, 164, 0.12);
+}
+html.gandalf-dark .data-table tbody tr:hover,
+html.gandalf-dark .chanv-table tbody tr:hover {
+  background: rgba(221, 203, 164, 0.08);
+}
+html.gandalf-dark .chanv-table thead th {
+  color: rgba(255, 255, 255, 0.6);
+  border-bottom-color: rgba(221, 203, 164, 0.25);
+}
+html.gandalf-dark .chanv-table tbody td {
+  border-bottom-color: rgba(221, 203, 164, 0.12);
+}
+
+/* --- Badges / pastilles --- */
+html.gandalf-dark .badge-neutral,
+html.gandalf-dark .section-num {
+  background: rgba(221, 203, 164, 0.15);
+  color: #ddcba4;
+}
+html.gandalf-dark .badge-danger {
+  background: rgba(225, 29, 72, 0.22);
+  color: #fda4af;
+}
+
+/* --- Boutons --- */
+html.gandalf-dark .btn-primary,
+html.gandalf-dark .chanv-btn-primary {
+  background: #ddcba4;
+  color: #201d19;
+}
+html.gandalf-dark .chanv-btn-primary:hover {
+  background: #e7d9ba;
+}
+html.gandalf-dark .btn-secondary,
+html.gandalf-dark .chanv-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+html.gandalf-dark .btn-secondary:hover:not(:disabled),
+html.gandalf-dark .chanv-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+html.gandalf-dark .btn-ghost {
+  color: rgba(255, 255, 255, 0.75);
+}
+html.gandalf-dark .btn-ghost:hover:not(:disabled) {
+  background: rgba(221, 203, 164, 0.12);
+}
+html.gandalf-dark .modal-close {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* --- Callouts (aide) & états colorés --- */
+html.gandalf-dark .bg-blue-50 {
+  background-color: rgba(37, 99, 235, 0.16);
+}
+html.gandalf-dark .border-blue-200 {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+html.gandalf-dark .text-blue-900 {
+  color: #bfdbfe;
+}
+html.gandalf-dark .bg-green-50 {
+  background-color: rgba(5, 150, 105, 0.16);
+}
+html.gandalf-dark .border-green-200 {
+  border-color: rgba(52, 211, 153, 0.35);
+}
+html.gandalf-dark .text-green-900,
+html.gandalf-dark .text-green-800,
+html.gandalf-dark .text-green-600 {
+  color: #6ee7b7;
+}
+html.gandalf-dark .bg-amber-50 {
+  background-color: rgba(217, 119, 6, 0.16);
+}
+html.gandalf-dark .border-amber-200 {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+html.gandalf-dark .text-amber-900,
+html.gandalf-dark .text-amber-800,
+html.gandalf-dark .text-amber-700 {
+  color: #fcd34d;
+}
+html.gandalf-dark .bg-red-50,
+html.gandalf-dark .bg-red-100 {
+  background-color: rgba(225, 29, 72, 0.16);
+}
+html.gandalf-dark .border-red-200 {
+  border-color: rgba(251, 113, 133, 0.35);
+}
+html.gandalf-dark .text-red-800,
+html.gandalf-dark .text-red-700,
+html.gandalf-dark .text-red-600,
+html.gandalf-dark .text-red-500,
+html.gandalf-dark .text-red-400 {
+  color: #fda4af;
+}
+
+/* --- Squelettes / spinner --- */
+html.gandalf-dark .kpi-skeleton,
+html.gandalf-dark .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    rgba(221, 203, 164, 0.1) 25%,
+    rgba(221, 203, 164, 0.22) 50%,
+    rgba(221, 203, 164, 0.1) 75%
+  );
+  background-size: 200% 100%;
+}
+html.gandalf-dark .spinner {
+  border-color: rgba(221, 203, 164, 0.2);
+  border-top-color: #ddcba4;
+}
+
+/* --- Graphiques recharts (lisibilité des ventes) --- */
+html.gandalf-dark .recharts-cartesian-axis-tick text,
+html.gandalf-dark .recharts-polar-angle-axis-tick text,
+html.gandalf-dark .recharts-pie-label-text {
+  fill: rgba(255, 255, 255, 0.65);
+}
+html.gandalf-dark .recharts-legend-item-text {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+html.gandalf-dark .recharts-default-tooltip {
+  background-color: #2b2823 !important;
+  border-color: rgba(221, 203, 164, 0.25) !important;
+}
+html.gandalf-dark .recharts-tooltip-label,
+html.gandalf-dark .recharts-tooltip-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+html.gandalf-dark .recharts-cartesian-axis-line,
+html.gandalf-dark .recharts-cartesian-axis-tick-line {
+  stroke: rgba(221, 203, 164, 0.25);
+}
