@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { FileDropZone } from "@/components/FileDropZone";
+import { useT, useLocale } from "@/lib/i18n";
 import type { EnrichedRow } from "@/lib/ocs-parser";
 
 interface UploadLog {
@@ -17,20 +18,20 @@ interface UploadLog {
   status: string;
 }
 
-function formatLogDate(d: unknown): string {
+function formatLogDate(d: unknown, locale: string): string {
   if (!d) return "—";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ts = typeof d === "object" && d !== null && "_seconds" in (d as any)
     ? (d as any)._seconds * 1000
     : Date.parse(d as string);
   if (isNaN(ts)) return "—";
-  return new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(ts));
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ts));
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  completed: "✅ Complété",
-  processing: "⏳ En cours",
-  failed: "❌ Échoué",
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  completed: "upload.statusCompleted",
+  processing: "upload.statusProcessing",
+  failed: "upload.statusFailed",
 };
 
 type ParseResult = {
@@ -48,6 +49,8 @@ type ConfirmResult = {
 type Phase = "select" | "parsing" | "preview" | "confirming" | "done" | "error";
 
 export default function UploadPage() {
+  const t = useT();
+  const locale = useLocale();
   const [phase, setPhase] = useState<Phase>("select");
   const [result, setResult] = useState<ParseResult | null>(null);
   const [confirmResult, setConfirmResult] = useState<ConfirmResult | null>(null);
@@ -74,17 +77,17 @@ export default function UploadPage() {
       const res = await fetch("/api/upload/parse", { method: "POST", body: formData });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Erreur lors du parsing");
+        throw new Error(err.error || t("upload.parseError"));
       }
 
       const data: ParseResult = await res.json();
       setResult(data);
       setPhase("preview");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inattendue");
+      setError(e instanceof Error ? e.message : t("upload.unexpectedError"));
       setPhase("error");
     }
-  }, []);
+  }, [t]);
 
   const handleConfirm = useCallback(async () => {
     if (!result) return;
@@ -98,7 +101,7 @@ export default function UploadPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Erreur lors de la confirmation");
+        throw new Error(err.error || t("upload.confirmError"));
       }
 
       const data: ConfirmResult = await res.json();
@@ -106,10 +109,10 @@ export default function UploadPage() {
       setPhase("done");
       loadLogs(); // rafraîchir l'historique
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inattendue");
+      setError(e instanceof Error ? e.message : t("upload.unexpectedError"));
       setPhase("error");
     }
-  }, [result, loadLogs]);
+  }, [result, loadLogs, t]);
 
   const reset = useCallback(() => {
     setPhase("select");
@@ -122,9 +125,9 @@ export default function UploadPage() {
     <div className="chanv-surface">
       <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
         <div>
-          <h2 className="text-2xl font-bold mb-1">📤 Importer les données OCS</h2>
+          <h2 className="text-2xl font-bold mb-1">📤 {t("upload.title")}</h2>
           <p className="text-sm text-slate-500">
-            Glisser le fichier .xlsx reçu de l&apos;OCS pour mettre à jour les stores et produits
+            {t("upload.subtitle")}
           </p>
         </div>
 
@@ -133,7 +136,7 @@ export default function UploadPage() {
           <div className="section-card" style={{ padding: "32px" }}>
             <div className="flex items-center gap-3 mb-6">
               <span className="section-num">01</span>
-              <h3 className="text-lg font-semibold">Sélectionner le fichier</h3>
+              <h3 className="text-lg font-semibold">{t("upload.selectFile")}</h3>
             </div>
             <FileDropZone onFile={handleFile} />
             {error && (
@@ -148,7 +151,7 @@ export default function UploadPage() {
         {phase === "parsing" && (
           <div className="section-card p-8 text-center">
             <div className="spinner mx-auto mb-4" />
-            <p className="text-sm text-slate-500">Analyse du fichier en cours...</p>
+            <p className="text-sm text-slate-500">{t("upload.parsing")}</p>
           </div>
         )}
 
@@ -157,24 +160,24 @@ export default function UploadPage() {
           <div className="section-card" style={{ padding: "32px" }}>
             <div className="flex items-center gap-3 mb-6">
               <span className="section-num">02</span>
-              <h3 className="text-lg font-semibold">Résultats du matching</h3>
+              <h3 className="text-lg font-semibold">{t("upload.matchingResults")}</h3>
             </div>
 
             {/* Summary */}
             <div className="flex gap-4 mb-6 flex-wrap">
               <div className="badge-accent px-4 py-2 rounded-xl text-sm">
-                ✅ {result.stats.matched} matchés
+                ✅ {t("upload.matchedCount", { n: result.stats.matched })}
               </div>
               <div className="badge-neutral px-4 py-2 rounded-xl text-sm">
-                ⚠️ {result.stats.unmatched} non-matchés
+                ⚠️ {t("upload.unmatchedCount", { n: result.stats.unmatched })}
               </div>
               {result.stats.invalid > 0 && (
                 <div className="px-4 py-2 rounded-xl text-sm bg-red-50 text-red-700">
-                  ❌ {result.stats.invalid} invalides
+                  ❌ {t("upload.invalidCount", { n: result.stats.invalid })}
                 </div>
               )}
               <div className="px-4 py-2 rounded-xl text-sm bg-slate-100 text-slate-600 ml-auto">
-                📊 {result.totalRows} lignes totales
+                📊 {t("upload.totalRows", { n: result.totalRows })}
               </div>
             </div>
 
@@ -183,13 +186,13 @@ export default function UploadPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Status</th>
-                    <th>Store (OCS)</th>
-                    <th>Ville</th>
-                    <th>Store matché</th>
-                    <th>Store #</th>
-                    <th>Produit</th>
-                    <th>Unités</th>
+                    <th>{t("upload.colStatus")}</th>
+                    <th>{t("upload.colStoreOcs")}</th>
+                    <th>{t("upload.colCity")}</th>
+                    <th>{t("upload.colMatchedStore")}</th>
+                    <th>{t("upload.colStoreNumber")}</th>
+                    <th>{t("upload.colProduct")}</th>
+                    <th>{t("upload.colUnits")}</th>
                     <th>GTIN12</th>
                   </tr>
                 </thead>
@@ -232,17 +235,17 @@ export default function UploadPage() {
             </div>
             {result.rows.length > 100 && (
               <p className="text-xs text-slate-400 mt-2 text-center">
-                Affichage des 100 premières lignes sur {result.rows.length}
+                {t("upload.previewLimit", { n: result.rows.length })}
               </p>
             )}
 
             {/* Actions */}
             <div className="flex gap-4 mt-8 justify-end">
               <button className="btn btn-secondary" onClick={reset}>
-                ← Annuler
+                ← {t("upload.cancel")}
               </button>
               <button className="btn btn-primary" onClick={handleConfirm}>
-                Confirmer l&apos;import ✓
+                {t("upload.confirmImport")} ✓
               </button>
             </div>
           </div>
@@ -253,7 +256,7 @@ export default function UploadPage() {
           <div className="section-card p-8 text-center">
             <div className="spinner mx-auto mb-4" />
             <p className="text-sm text-slate-500">
-              Écriture dans la base de données...
+              {t("upload.writing")}
             </p>
           </div>
         )}
@@ -262,14 +265,14 @@ export default function UploadPage() {
         {phase === "done" && confirmResult && (
           <div className="section-card p-8 text-center">
             <div className="text-5xl mb-4">✅</div>
-            <h3 className="text-xl font-bold mb-4">Import terminé avec succès!</h3>
+            <h3 className="text-xl font-bold mb-4">{t("upload.doneTitle")}</h3>
             <div className="flex gap-6 justify-center mb-8 flex-wrap">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[var(--chanv-terre)]">
                   {confirmResult.stats.stores_created}
                 </div>
                 <div className="text-xs text-slate-500 uppercase tracking-wider">
-                  Stores créés
+                  {t("upload.storesCreated")}
                 </div>
               </div>
               <div className="text-center">
@@ -277,7 +280,7 @@ export default function UploadPage() {
                   {confirmResult.stats.stores_updated}
                 </div>
                 <div className="text-xs text-slate-500 uppercase tracking-wider">
-                  Stores mis à jour
+                  {t("upload.storesUpdated")}
                 </div>
               </div>
               <div className="text-center">
@@ -285,12 +288,12 @@ export default function UploadPage() {
                   {confirmResult.stats.products_added}
                 </div>
                 <div className="text-xs text-slate-500 uppercase tracking-wider">
-                  Produits ajoutés
+                  {t("upload.productsAdded")}
                 </div>
               </div>
             </div>
             <button className="btn btn-primary" onClick={reset}>
-              Nouvel import
+              {t("upload.newImport")}
             </button>
           </div>
         )}
@@ -299,26 +302,26 @@ export default function UploadPage() {
         {logs.length > 0 && (
           <div className="section-card" style={{ padding: "24px" }}>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
-              📋 Derniers imports
+              📋 {t("upload.historyTitle")}
             </h3>
             <div style={{ overflowX: "auto" }}>
               <table className="chanv-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Fichier</th>
-                    <th>Par</th>
-                    <th style={{ textAlign: "right" }}>Lignes</th>
-                    <th style={{ textAlign: "right" }}>Stores créés</th>
-                    <th style={{ textAlign: "right" }}>Stores màj</th>
-                    <th style={{ textAlign: "right" }}>Produits</th>
-                    <th>Statut</th>
+                    <th>{t("upload.colDate")}</th>
+                    <th>{t("upload.colFile")}</th>
+                    <th>{t("upload.colBy")}</th>
+                    <th style={{ textAlign: "right" }}>{t("upload.colRows")}</th>
+                    <th style={{ textAlign: "right" }}>{t("upload.storesCreated")}</th>
+                    <th style={{ textAlign: "right" }}>{t("upload.colStoresUpdatedShort")}</th>
+                    <th style={{ textAlign: "right" }}>{t("upload.colProducts")}</th>
+                    <th>{t("upload.colStatusLabel")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((log) => (
                     <tr key={log.id}>
-                      <td className="text-xs whitespace-nowrap">{formatLogDate(log.uploaded_at)}</td>
+                      <td className="text-xs whitespace-nowrap">{formatLogDate(log.uploaded_at, locale)}</td>
                       <td className="text-xs font-mono" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {log.filename}
                       </td>
@@ -327,7 +330,7 @@ export default function UploadPage() {
                       <td className="text-xs" style={{ textAlign: "right" }}>{log.stores_created ?? 0}</td>
                       <td className="text-xs" style={{ textAlign: "right" }}>{log.stores_updated ?? 0}</td>
                       <td className="text-xs" style={{ textAlign: "right" }}>{log.products_added ?? 0}</td>
-                      <td className="text-xs whitespace-nowrap">{STATUS_LABELS[log.status] || log.status}</td>
+                      <td className="text-xs whitespace-nowrap">{STATUS_LABEL_KEYS[log.status] ? t(STATUS_LABEL_KEYS[log.status]) : log.status}</td>
                     </tr>
                   ))}
                 </tbody>

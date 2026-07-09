@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useT, useLocale } from "@/lib/i18n";
 
 interface Column<T> {
   key: string;
@@ -24,12 +25,14 @@ export function DataTable<T extends Record<string, unknown>>({
   columns,
   data,
   pageSize = 20,
-  searchPlaceholder = "🔍 Rechercher...",
+  searchPlaceholder,
   searchKeys,
-  emptyMessage = "Aucune donnée",
+  emptyMessage,
   onRowClick,
   loading = false,
 }: DataTableProps<T>) {
+  const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -51,10 +54,10 @@ export function DataTable<T extends Record<string, unknown>>({
     return [...filtered].sort((a, b) => {
       const va = String(a[sortKey] || "");
       const vb = String(b[sortKey] || "");
-      const cmp = va.localeCompare(vb, "fr", { numeric: true });
+      const cmp = va.localeCompare(vb, locale, { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [filtered, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir, locale]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
@@ -81,7 +84,7 @@ export function DataTable<T extends Record<string, unknown>>({
         <input
           type="text"
           className="input data-table-search"
-          placeholder={searchPlaceholder}
+          placeholder={searchPlaceholder ?? t("table.searchPlaceholder")}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -89,7 +92,9 @@ export function DataTable<T extends Record<string, unknown>>({
           }}
         />
         <span className="data-table-count">
-          {filtered.length} résultat{filtered.length !== 1 ? "s" : ""}
+          {filtered.length === 1
+            ? t("table.resultOne", { n: filtered.length })
+            : t("table.results", { n: filtered.length })}
         </span>
       </div>
 
@@ -127,7 +132,7 @@ export function DataTable<T extends Record<string, unknown>>({
             ) : paged.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="data-table-empty">
-                  {emptyMessage}
+                  {emptyMessage ?? t("table.empty")}
                 </td>
               </tr>
             ) : (
@@ -158,17 +163,17 @@ export function DataTable<T extends Record<string, unknown>>({
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
           >
-            ← Précédent
+            {t("table.prev")}
           </button>
           <span className="data-table-page-info">
-            Page {page + 1} / {totalPages}
+            {t("table.pageInfo", { page: page + 1, total: totalPages })}
           </span>
           <button
             className="btn-ghost"
             disabled={page >= totalPages - 1}
             onClick={() => setPage((p) => p + 1)}
           >
-            Suivant →
+            {t("table.next")}
           </button>
         </div>
       )}

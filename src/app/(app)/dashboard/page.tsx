@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useT, useLocale } from "@/lib/i18n";
 import { KpiCard, KpiRow } from "@/components/KpiCard";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -43,11 +44,17 @@ function gtinTo12(g: string): string {
 }
 
 const COLORS = ["#C4A265", "#8B6914", "#A0522D", "#6B8E23", "#4682B4", "#9370DB", "#CD853F", "#D2691E", "#BC8F8F", "#8FBC8F"];
-const TABS = ["Aperçu", "Produits", "Stores", "Temps", "Profil"] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { id: "overview", labelKey: "dash.tabOverview" },
+  { id: "products", labelKey: "dash.tabProducts" },
+  { id: "stores", labelKey: "dash.tabStores" },
+  { id: "time", labelKey: "dash.tabTime" },
+  { id: "profile", labelKey: "dash.tabProfile" },
+] as const;
+type Tab = (typeof TABS)[number]["id"];
 
-function formatNum(n: number): string {
-  return new Intl.NumberFormat("fr-CA").format(n);
+function formatNum(n: number, locale: string): string {
+  return new Intl.NumberFormat(locale).format(n);
 }
 
 /**
@@ -81,9 +88,11 @@ function pearson(xs: number[], ys: number[]): number | null {
 }
 
 export default function DashboardPage() {
+  const t = useT();
+  const locale = useLocale();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("Aperçu");
+  const [tab, setTab] = useState<Tab>("overview");
   const [region, setRegion] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -130,7 +139,7 @@ export default function DashboardPage() {
       .then(setData)
       .catch((err) => {
         console.error("Analytics fetch error:", err);
-        setError("Erreur lors du chargement des données. Réessayez.");
+        setError("dash.loadError"); // clé i18n, traduite au rendu
       })
       .finally(() => setLoading(false));
   }, [region, fromDate, toDate]);
@@ -143,19 +152,19 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold mb-1">📊 Tableau de bord</h2>
+            <h2 className="text-2xl font-bold mb-1">{t("dash.title")}</h2>
             <p className="text-sm text-slate-500">
-              Ventes OCS Ontario — Performance Bleuh
+              {t("dash.subtitle")}
               {data?.source && (
                 <span
                   className="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--chanv-fibre)] text-slate-500 align-middle"
                   title={
                     data.source === "ledger"
-                      ? "Journal cumulatif des ventes : chaque commande compte à sa date réelle"
-                      : "Instantané : dernière commande connue par magasin × produit"
+                      ? t("dash.sourceLedgerTitle")
+                      : t("dash.sourceSnapshotTitle")
                   }
                 >
-                  {data.source === "ledger" ? "📒 journal" : "📷 instantané"}
+                  {data.source === "ledger" ? t("dash.sourceLedger") : t("dash.sourceSnapshot")}
                 </span>
               )}
             </p>
@@ -166,9 +175,9 @@ export default function DashboardPage() {
               value={region}
               onChange={(e) => setRegion(e.target.value)}
               className="chanv-select text-sm"
-              aria-label="Filtrer par région"
+              aria-label={t("dash.filterRegionAria")}
             >
-              <option value="">Toutes les régions</option>
+              <option value="">{t("dash.allRegions")}</option>
               {(data?.regions || []).map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -178,33 +187,33 @@ export default function DashboardPage() {
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
               className="chanv-input text-sm"
-              aria-label="Date début"
-              placeholder="Du"
+              aria-label={t("dash.dateFromAria")}
+              placeholder={t("dash.fromPlaceholder")}
             />
             <input
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
               className="chanv-input text-sm"
-              aria-label="Date fin"
-              placeholder="Au"
+              aria-label={t("dash.dateToAria")}
+              placeholder={t("dash.toPlaceholder")}
             />
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-[var(--chanv-fibre)] rounded-xl p-1">
-          {TABS.map((t) => (
+          {TABS.map((tb) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                tab === t
+                tab === tb.id
                   ? "bg-chanv-beige text-chanv-terre shadow-sm"
                   : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
               }`}
             >
-              {t}
+              {t(tb.labelKey)}
             </button>
           ))}
         </div>
@@ -212,27 +221,27 @@ export default function DashboardPage() {
         {/* Error */}
         {error && (
           <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm flex items-center justify-between">
-            <span>{error}</span>
+            <span>{t(error)}</span>
             <button onClick={fetchData} className="text-red-700 font-semibold hover:underline ml-4">
-              🔄 Réessayer
+              {t("dash.retry")}
             </button>
           </div>
         )}
 
         {/* KPIs */}
         <KpiRow>
-          <KpiCard icon="📦" label="Unités vendues" value={formatNum(data?.totals.totalUnits ?? 0)} loading={loading} />
-          <KpiCard icon="🏷️" label="Produits distincts" value={data?.totals.totalProducts ?? 0} loading={loading} />
-          <KpiCard icon="🏪" label="Stores actifs" value={data?.totals.totalStores ?? 0} loading={loading} />
-          <KpiCard icon="📋" label="Lignes de vente" value={formatNum(data?.totals.totalLines ?? 0)} loading={loading} />
+          <KpiCard icon="📦" label={t("dash.kpiUnits")} value={formatNum(data?.totals.totalUnits ?? 0, locale)} loading={loading} />
+          <KpiCard icon="🏷️" label={t("dash.kpiProducts")} value={data?.totals.totalProducts ?? 0} loading={loading} />
+          <KpiCard icon="🏪" label={t("dash.kpiStores")} value={data?.totals.totalStores ?? 0} loading={loading} />
+          <KpiCard icon="📋" label={t("dash.kpiLines")} value={formatNum(data?.totals.totalLines ?? 0, locale)} loading={loading} />
         </KpiRow>
 
         {/* Tab content */}
-        {tab === "Aperçu" && <OverviewTab data={data} loading={loading} />}
-        {tab === "Produits" && <ProductsTab data={data} loading={loading} />}
-        {tab === "Stores" && <StoresTab data={data} loading={loading} />}
-        {tab === "Temps" && <TimeTab data={data} loading={loading} />}
-        {tab === "Profil" && <ProfileTab data={data} master={master} loading={loading} />}
+        {tab === "overview" && <OverviewTab data={data} loading={loading} />}
+        {tab === "products" && <ProductsTab data={data} loading={loading} />}
+        {tab === "stores" && <StoresTab data={data} loading={loading} />}
+        {tab === "time" && <TimeTab data={data} loading={loading} />}
+        {tab === "profile" && <ProfileTab data={data} master={master} loading={loading} />}
       </div>
     </div>
   );
@@ -240,24 +249,26 @@ export default function DashboardPage() {
 
 /* ── Aperçu ─────────────────────────────────────── */
 function OverviewTab({ data, loading }: { data: AnalyticsData | null; loading: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   if (loading || !data) return <LoadingSkeleton />;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Ventes par mois */}
-      <ChartCard title="📈 Ventes par mois">
+      <ChartCard title={t("dash.chartMonthlySales")}>
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data.byMonth}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Line type="monotone" dataKey="units" stroke="#C4A265" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </ChartCard>
 
       {/* Par région */}
-      <ChartCard title="🗺️ Ventes par région">
+      <ChartCard title={t("dash.chartRegionSales")}>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie data={data.byRegion.slice(0, 10)} dataKey="units" nameKey="region" cx="50%" cy="50%" outerRadius={100} label={(e) => e.region}>
@@ -265,32 +276,32 @@ function OverviewTab({ data, loading }: { data: AnalyticsData | null; loading: b
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
           </PieChart>
         </ResponsiveContainer>
       </ChartCard>
 
       {/* Top 10 produits */}
-      <ChartCard title="🏆 Top 10 produits">
+      <ChartCard title={t("dash.chartTopProducts")}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.byProduct.slice(0, 10)} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis type="number" tick={{ fontSize: 11 }} />
             <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 10 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Bar dataKey="totalUnits" fill="#C4A265" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
       {/* Par catégorie */}
-      <ChartCard title="📂 Ventes par catégorie de produit">
+      <ChartCard title={t("dash.chartCategorySales")}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.byCategory.slice(0, 8)}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis dataKey="category" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Bar dataKey="units" fill="#8B6914" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -301,6 +312,8 @@ function OverviewTab({ data, loading }: { data: AnalyticsData | null; loading: b
 
 /* ── Produits ────────────────────────────────────── */
 function ProductsTab({ data, loading }: { data: AnalyticsData | null; loading: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   if (loading || !data) return <LoadingSkeleton />;
 
@@ -312,11 +325,11 @@ function ProductsTab({ data, loading }: { data: AnalyticsData | null; loading: b
     <div className="section-card" style={{ padding: "24px" }}>
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-          Performance par produit ({formatNum(filtered.length)})
+          {t("dash.productsTableTitle", { n: formatNum(filtered.length, locale) })}
         </h3>
         <input
           type="search"
-          placeholder="Rechercher SKU ou nom…"
+          placeholder={t("dash.searchSkuOrName")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="chanv-input text-sm"
@@ -327,14 +340,14 @@ function ProductsTab({ data, loading }: { data: AnalyticsData | null; loading: b
         <table className="chanv-table">
           <thead>
             <tr>
-              <th>Produit</th>
-              <th>SKU</th>
-              <th>Catégorie</th>
-              <th style={{ textAlign: "right" }}>Unités</th>
-              <th style={{ textAlign: "right" }}>Stores</th>
-              <th style={{ textAlign: "right" }}>Vélocité/Store</th>
-              <th>Première vente</th>
-              <th>Dernière vente</th>
+              <th>{t("dash.colProduct")}</th>
+              <th>{t("dash.colSku")}</th>
+              <th>{t("dash.colCategory")}</th>
+              <th style={{ textAlign: "right" }}>{t("dash.colUnits")}</th>
+              <th style={{ textAlign: "right" }}>{t("dash.colStores")}</th>
+              <th style={{ textAlign: "right" }}>{t("dash.colVelocity")}</th>
+              <th>{t("dash.colFirstSale")}</th>
+              <th>{t("dash.colLastSale")}</th>
             </tr>
           </thead>
           <tbody>
@@ -343,7 +356,7 @@ function ProductsTab({ data, loading }: { data: AnalyticsData | null; loading: b
                 <td className="font-medium">{p.name}</td>
                 <td className="text-xs text-slate-400 font-mono">{p.sku}</td>
                 <td>{p.category}</td>
-                <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.totalUnits)}</td>
+                <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.totalUnits, locale)}</td>
                 <td style={{ textAlign: "right" }}>{p.storeCount}</td>
                 <td style={{ textAlign: "right" }}>
                   {p.storeCount > 0 ? (p.totalUnits / p.storeCount).toFixed(1) : "—"}
@@ -361,6 +374,8 @@ function ProductsTab({ data, loading }: { data: AnalyticsData | null; loading: b
 
 /* ── Stores ──────────────────────────────────────── */
 function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   if (loading || !data) return <LoadingSkeleton />;
 
@@ -371,15 +386,15 @@ function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boo
   return (
     <div className="space-y-6">
       {/* Top 15 bar chart */}
-      <ChartCard title="🏆 Top 15 stores par volume">
+      <ChartCard title={t("dash.chartTopStores")}>
         <ResponsiveContainer width="100%" height={350}>
           <BarChart data={data.byStore.slice(0, 15)} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis type="number" tick={{ fontSize: 11 }} />
             <YAxis dataKey="name" type="category" width={160} tick={{ fontSize: 10 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Legend />
-            <Bar dataKey="totalUnits" name="Unités vendues" fill="#C4A265" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="totalUnits" name={t("dash.unitsSold")} fill="#C4A265" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -388,11 +403,11 @@ function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boo
       <div className="section-card" style={{ padding: "24px" }}>
         <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-            Tous les stores ({formatNum(filtered.length)})
+            {t("dash.storesTableTitle", { n: formatNum(filtered.length, locale) })}
           </h3>
           <input
             type="search"
-            placeholder="Rechercher nom ou ville…"
+            placeholder={t("dash.searchNameOrCity")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="chanv-input text-sm"
@@ -403,12 +418,12 @@ function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boo
           <table className="chanv-table">
             <thead>
               <tr>
-                <th>Store</th>
-                <th>Ville</th>
-                <th>Région</th>
-                <th style={{ textAlign: "right" }}>Unités</th>
-                <th style={{ textAlign: "right" }}>SKUs</th>
-                <th style={{ textAlign: "right" }}>Unités/SKU</th>
+                <th>{t("dash.colStore")}</th>
+                <th>{t("dash.colCity")}</th>
+                <th>{t("dash.colRegion")}</th>
+                <th style={{ textAlign: "right" }}>{t("dash.colUnits")}</th>
+                <th style={{ textAlign: "right" }}>{t("dash.colSkus")}</th>
+                <th style={{ textAlign: "right" }}>{t("dash.colUnitsPerSku")}</th>
               </tr>
             </thead>
             <tbody>
@@ -417,7 +432,7 @@ function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boo
                   <td className="font-medium">{s.name}</td>
                   <td>{s.city}</td>
                   <td>{s.region}</td>
-                  <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(s.totalUnits)}</td>
+                  <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(s.totalUnits, locale)}</td>
                   <td style={{ textAlign: "right" }}>{s.skuCount}</td>
                   <td style={{ textAlign: "right" }}>
                     {s.skuCount > 0 ? (s.totalUnits / s.skuCount).toFixed(1) : "—"}
@@ -434,43 +449,45 @@ function StoresTab({ data, loading }: { data: AnalyticsData | null; loading: boo
 
 /* ── Temps ───────────────────────────────────────── */
 function TimeTab({ data, loading }: { data: AnalyticsData | null; loading: boolean }) {
+  const t = useT();
+  const locale = useLocale();
   if (loading || !data) return <LoadingSkeleton />;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Timeline mensuelle */}
-      <ChartCard title="📅 Volume mensuel">
+      <ChartCard title={t("dash.chartMonthlyVolume")}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.byMonth}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Bar dataKey="units" fill="#C4A265" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
       {/* Par jour de semaine */}
-      <ChartCard title="📆 Ventes par jour de la semaine">
+      <ChartCard title={t("dash.chartWeekday")}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.byDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis dataKey="label" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Bar dataKey="units" fill="#8B6914" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
 
       {/* Tendance (line) */}
-      <ChartCard title="📈 Tendance des ventes" className="lg:col-span-2">
+      <ChartCard title={t("dash.chartTrend")} className="lg:col-span-2">
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data.byMonth}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+            <Tooltip formatter={(v: number) => [formatNum(v, locale), t("dash.units")]} />
             <Line type="monotone" dataKey="units" stroke="#C4A265" strokeWidth={3} dot={{ r: 4, fill: "#C4A265" }} />
           </LineChart>
         </ResponsiveContainer>
@@ -480,6 +497,7 @@ function TimeTab({ data, loading }: { data: AnalyticsData | null; loading: boole
 }
 
 /* ── Profil produit (THC/CBD × ventes) ───────────── */
+/* Labels de tranches : notation numérique, identique dans les 3 langues */
 const THC_BANDS = [
   { label: "< 10 %", min: 0, max: 10 },
   { label: "10–15 %", min: 10, max: 15 },
@@ -497,12 +515,14 @@ function ProfileTab({
   master: MasterMap | null;
   loading: boolean;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   if (loading || !data) return <LoadingSkeleton />;
   if (!master) {
     return (
       <div className="section-card p-8 text-center text-slate-400">
-        Chargement du référentiel produits (THC/CBD)…
+        {t("dash.profileLoading")}
       </div>
     );
   }
@@ -535,7 +555,7 @@ function ProfileTab({
   // Corrélation THC × unités
   const r = pearson(withThc.map((p) => p.thc as number), withThc.map((p) => p.units));
   const corrLabel =
-    r === null ? "—" : r > 0.15 ? "positive" : r < -0.15 ? "négative" : "faible";
+    r === null ? "—" : r > 0.15 ? t("dash.corrPositive") : r < -0.15 ? t("dash.corrNegative") : t("dash.corrWeak");
 
   // Ventes par tranche de THC
   const bands = THC_BANDS.map((b) => ({
@@ -564,7 +584,7 @@ function ProfileTab({
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-              Corrélation THC × unités vendues
+              {t("dash.corrTitle")}
             </div>
             <div className="text-2xl font-bold text-chanv-terre">
               {r === null ? "—" : r.toFixed(2)}
@@ -573,7 +593,7 @@ function ProfileTab({
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-              Produits enrichis
+              {t("dash.enrichedTitle")}
             </div>
             <div className="text-2xl font-bold text-chanv-terre">
               {withThc.length}
@@ -583,15 +603,14 @@ function ProfileTab({
         </div>
         {matchRate < 60 && (
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3 mb-0">
-            ⚠️ Seuls {matchRate} % des produits ont un THC connu dans DB-Products-Master — la
-            corrélation est indicative. Complétez le référentiel pour affiner.
+            {t("dash.matchWarning", { rate: matchRate })}
           </p>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Nuage THC vs ventes */}
-        <ChartCard title="🌿 THC (%) × unités vendues">
+        <ChartCard title={t("dash.chartThcScatter")}>
           <ResponsiveContainer width="100%" height={320}>
             <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
@@ -600,18 +619,18 @@ function ProfileTab({
                 tick={{ fontSize: 11 }} domain={[0, "dataMax + 2"]}
                 label={{ value: "THC (%)", position: "insideBottom", offset: -15, fontSize: 11 }}
               />
-              <YAxis type="number" dataKey="units" name="Unités" tick={{ fontSize: 11 }} />
+              <YAxis type="number" dataKey="units" name={t("dash.units")} tick={{ fontSize: 11 }} />
               <ZAxis range={[40, 40]} />
               <Tooltip
                 cursor={{ strokeDasharray: "3 3" }}
-                formatter={(v: number, n: string) => [n === "THC" ? `${v}%` : formatNum(v), n]}
+                formatter={(v: number, n: string) => [n === "THC" ? `${v}%` : formatNum(v, locale), n]}
                 labelFormatter={() => ""}
                 content={({ payload }) =>
                   payload && payload.length ? (
                     <div className="bg-white border border-black/10 rounded-lg px-3 py-2 text-xs shadow">
                       <div className="font-semibold">{payload[0].payload.name}</div>
-                      <div>THC : {payload[0].payload.thc}%</div>
-                      <div>Unités : {formatNum(payload[0].payload.units)}</div>
+                      <div>{t("dash.tooltipThc", { v: payload[0].payload.thc })}</div>
+                      <div>{t("dash.tooltipUnits", { v: formatNum(payload[0].payload.units, locale) })}</div>
                     </div>
                   ) : null
                 }
@@ -622,14 +641,14 @@ function ProfileTab({
         </ChartCard>
 
         {/* Ventes par tranche de THC */}
-        <ChartCard title="📊 Unités vendues par tranche de THC">
+        <ChartCard title={t("dash.chartThcBands")}>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={bands}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
-                formatter={(v: number, n: string) => [n === "units" ? formatNum(v) : v, n === "units" ? "Unités" : "Produits"]}
+                formatter={(v: number, n: string) => [n === "units" ? formatNum(v, locale) : v, n === "units" ? t("dash.units") : t("dash.products")]}
               />
               <Bar dataKey="units" fill="#6B8E23" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -641,11 +660,11 @@ function ProfileTab({
       <div className="section-card" style={{ padding: "24px" }}>
         <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
-            Produits enrichis THC / CBD ({formatNum(filtered.length)})
+            {t("dash.enrichedTableTitle", { n: formatNum(filtered.length, locale) })}
           </h3>
           <input
             type="search"
-            placeholder="Rechercher SKU ou nom…"
+            placeholder={t("dash.searchSkuOrName")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="chanv-input text-sm"
@@ -656,14 +675,14 @@ function ProfileTab({
           <table className="chanv-table">
             <thead>
               <tr>
-                <th>Produit (FR)</th>
-                <th>SKU</th>
-                <th>Catégorie</th>
+                <th>{t("dash.colProductFr")}</th>
+                <th>{t("dash.colSku")}</th>
+                <th>{t("dash.colCategory")}</th>
                 <th style={{ textAlign: "right" }}>THC</th>
                 <th style={{ textAlign: "right" }}>CBD</th>
-                <th style={{ textAlign: "right" }}>Unités</th>
-                <th style={{ textAlign: "right" }}>Stores</th>
-                <th style={{ textAlign: "center" }}>Lots</th>
+                <th style={{ textAlign: "right" }}>{t("dash.colUnits")}</th>
+                <th style={{ textAlign: "right" }}>{t("dash.colStores")}</th>
+                <th style={{ textAlign: "center" }}>{t("dash.colLots")}</th>
               </tr>
             </thead>
             <tbody>
@@ -674,7 +693,7 @@ function ProfileTab({
                   <td>{p.category || "—"}</td>
                   <td style={{ textAlign: "right" }}>{p.thc !== null ? `${p.thc}%` : "—"}</td>
                   <td style={{ textAlign: "right" }}>{p.cbd !== null ? `${p.cbd}%` : "—"}</td>
-                  <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.units)}</td>
+                  <td style={{ textAlign: "right" }} className="font-semibold">{formatNum(p.units, locale)}</td>
                   <td style={{ textAlign: "right" }}>{p.storeCount}</td>
                   <td style={{ textAlign: "center" }}>
                     {p.masterSku ? (
@@ -682,7 +701,7 @@ function ProfileTab({
                         href={`${PRODUCTION_URL}/?view=${encodeURIComponent(p.masterSku)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={`Voir les lots de ${p.masterSku} dans Pilotage Production (THC, CBD, terpènes par lot)`}
+                        title={t("dash.lotsLinkTitle", { sku: p.masterSku })}
                         className="text-slate-400 hover:text-chanv-terre transition-colors"
                       >
                         🧪

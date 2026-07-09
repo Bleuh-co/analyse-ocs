@@ -208,6 +208,11 @@ export async function getSession(): Promise<SessionContext | null> {
     };
   } catch (e) {
     if (e instanceof GandalfDenied) return null;
+    // Marqueur interne Next (prerender) : doit remonter pour que la route
+    // soit correctement rendue dynamique — ne surtout pas l'avaler.
+    if (e && typeof e === "object" && (e as { digest?: string }).digest === "DYNAMIC_SERVER_USAGE") {
+      throw e;
+    }
     console.warn("[auth] getSession error", e);
     return null;
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, useRef, type DragEvent, type ChangeEvent } from "react";
+import { useT } from "@/lib/i18n";
 
 interface FileDropZoneProps {
   onFile: (file: File) => void;
@@ -15,6 +16,7 @@ export function FileDropZone({
   maxSizeMB = 10,
   disabled = false,
 }: FileDropZoneProps) {
+  const t = useT();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,16 +26,16 @@ export function FileDropZone({
       setError(null);
       const name = file.name.toLowerCase();
       if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-        setError("Seuls les fichiers .xlsx / .xls sont acceptés");
+        setError(t("drop.errType"));
         return false;
       }
       if (file.size > maxSizeMB * 1024 * 1024) {
-        setError(`Le fichier dépasse ${maxSizeMB} MB`);
+        setError(t("drop.errSize", { max: maxSizeMB }));
         return false;
       }
       return true;
     },
-    [maxSizeMB]
+    [maxSizeMB, t]
   );
 
   const handleDrop = useCallback(
@@ -81,10 +83,10 @@ export function FileDropZone({
           />
         </svg>
         <p className="drop-title">
-          Glisser-déposer le fichier <strong>.xlsx</strong> ici
+          {t("drop.titlePrefix")}<strong>.xlsx</strong>{t("drop.titleSuffix")}
         </p>
         <p className="drop-subtitle">
-          ou cliquer pour sélectionner — Fichier reçu de l&apos;OCS (ex: data (28).xlsx)
+          {t("drop.subtitle")}
         </p>
         {error && <p className="drop-error">{error}</p>}
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import { useT } from "@/lib/i18n";
 
 /* ── Types ─────────────────────────────────────── */
 interface MarketingAction {
@@ -23,27 +24,28 @@ interface MarketingAction {
   created_at: { _seconds: number } | string;
 }
 
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  plv_envoye: "📦 PLV envoyé",
-  plv_installe: "🖼️ PLV installé",
-  visite_terrain: "🚗 Visite terrain",
-  courriel: "📧 Courriel",
-  appel: "📞 Appel",
-  sms: "💬 SMS",
-  formation: "🎓 Formation",
-  promo: "🏷️ Promo",
-  evenement: "🎪 Événement",
-  autre: "📝 Autre",
+const ACTION_TYPE_KEYS: Record<string, string> = {
+  plv_envoye: "mkt.type.plv_envoye",
+  plv_installe: "mkt.type.plv_installe",
+  visite_terrain: "mkt.type.visite_terrain",
+  courriel: "mkt.type.courriel",
+  appel: "mkt.type.appel",
+  sms: "mkt.type.sms",
+  formation: "mkt.type.formation",
+  promo: "mkt.type.promo",
+  evenement: "mkt.type.evenement",
+  autre: "mkt.type.autre",
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  planifie: { label: "Planifié", color: "#718096" },
-  en_cours: { label: "En cours", color: "#D69E2E" },
-  complete: { label: "Complété", color: "#38A169" },
-  annule: { label: "Annulé", color: "#E53E3E" },
+const STATUS_META: Record<string, { key: string; color: string }> = {
+  planifie: { key: "mkt.status.planifie", color: "#718096" },
+  en_cours: { key: "mkt.status.en_cours", color: "#D69E2E" },
+  complete: { key: "mkt.status.complete", color: "#38A169" },
+  annule: { key: "mkt.status.annule", color: "#E53E3E" },
 };
 
 export default function MarketingActionsPage() {
+  const t = useT();
   const { session } = useAuth();
   const [actions, setActions] = useState<MarketingAction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,9 +84,9 @@ export default function MarketingActionsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold mb-1">📣 Actions Marketing</h2>
+            <h2 className="text-2xl font-bold mb-1">{t("mkt.list.title")}</h2>
             <p className="text-sm text-slate-500">
-              Suivi des actions terrain, PLV, visites et campagnes
+              {t("mkt.list.subtitle")}
             </p>
           </div>
           {isGestionnaire && (
@@ -92,7 +94,7 @@ export default function MarketingActionsPage() {
               href="/actions-marketing/new"
               className="chanv-btn-primary inline-flex items-center gap-2"
             >
-              <span>➕</span> Nouvelle action
+              <span>➕</span> {t("mkt.list.new")}
             </Link>
           )}
         </div>
@@ -101,7 +103,7 @@ export default function MarketingActionsPage() {
         <div className="flex flex-wrap gap-3">
           <input
             type="search"
-            placeholder="Rechercher campagne, store, produit…"
+            placeholder={t("mkt.list.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="chanv-input text-sm flex-1"
@@ -111,11 +113,11 @@ export default function MarketingActionsPage() {
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             className="chanv-select text-sm"
-            aria-label="Filtrer par type"
+            aria-label={t("mkt.list.filterType")}
           >
-            <option value="">Tous les types</option>
-            {Object.entries(ACTION_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+            <option value="">{t("mkt.list.allTypes")}</option>
+            {Object.entries(ACTION_TYPE_KEYS).map(([k, v]) => (
+              <option key={k} value={k}>{t(v)}</option>
             ))}
           </select>
         </div>
@@ -128,10 +130,10 @@ export default function MarketingActionsPage() {
         ) : filtered.length === 0 ? (
           <div className="section-card p-8 text-center">
             <p className="text-slate-400 text-sm">
-              Aucune action marketing.{" "}
+              {t("mkt.list.empty")}{" "}
               {isGestionnaire && (
                 <Link href="/actions-marketing/new" className="text-[var(--chanv-beige)] font-semibold hover:underline">
-                  Créer la première
+                  {t("mkt.list.createFirst")}
                 </Link>
               )}
             </p>
@@ -142,26 +144,26 @@ export default function MarketingActionsPage() {
               <table className="chanv-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Campagne</th>
-                    <th>Type</th>
-                    <th>Store</th>
-                    <th>Produit</th>
-                    <th>Responsable</th>
-                    <th>Statut</th>
-                    <th>Coût</th>
+                    <th>{t("mkt.table.date")}</th>
+                    <th>{t("mkt.table.campaign")}</th>
+                    <th>{t("mkt.table.type")}</th>
+                    <th>{t("mkt.table.store")}</th>
+                    <th>{t("mkt.table.product")}</th>
+                    <th>{t("mkt.table.responsible")}</th>
+                    <th>{t("mkt.table.status")}</th>
+                    <th>{t("mkt.table.cost")}</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((a) => {
-                    const statusInfo = STATUS_LABELS[a.status] || STATUS_LABELS.planifie;
+                    const statusInfo = STATUS_META[a.status] || STATUS_META.planifie;
                     return (
                       <tr key={a.id}>
                         <td className="text-xs whitespace-nowrap">{a.action_date}</td>
                         <td className="font-medium">{a.campaign}</td>
                         <td className="text-xs whitespace-nowrap">
-                          {ACTION_TYPE_LABELS[a.action_type] || a.action_type}
+                          {ACTION_TYPE_KEYS[a.action_type] ? t(ACTION_TYPE_KEYS[a.action_type]) : a.action_type}
                         </td>
                         <td>
                           <div className="font-medium">{a.store_name}</div>
@@ -176,7 +178,7 @@ export default function MarketingActionsPage() {
                             className="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold text-white"
                             style={{ background: statusInfo.color }}
                           >
-                            {statusInfo.label}
+                            {t(statusInfo.key)}
                           </span>
                         </td>
                         <td className="text-sm text-right">
@@ -187,7 +189,7 @@ export default function MarketingActionsPage() {
                             href={`/actions-marketing/${a.id}`}
                             className="text-[var(--chanv-beige)] hover:underline text-sm font-semibold"
                           >
-                            Voir
+                            {t("mkt.list.view")}
                           </Link>
                         </td>
                       </tr>

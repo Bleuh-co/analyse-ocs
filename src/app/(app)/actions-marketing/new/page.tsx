@@ -2,32 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 
 /* ── Types ─────────────────────────────────────── */
 interface StoreOption { id: string; name: string; city: string; region: string; address: string }
 interface ProductOption { sku: string; name: string }
 
 const ACTION_TYPES = [
-  { value: "plv_envoye", label: "📦 PLV envoyé" },
-  { value: "plv_installe", label: "🖼️ PLV installé" },
-  { value: "visite_terrain", label: "🚗 Visite terrain" },
-  { value: "courriel", label: "📧 Courriel" },
-  { value: "appel", label: "📞 Appel" },
-  { value: "sms", label: "💬 SMS" },
-  { value: "formation", label: "🎓 Formation" },
-  { value: "promo", label: "🏷️ Promo" },
-  { value: "evenement", label: "🎪 Événement" },
-  { value: "autre", label: "📝 Autre" },
+  { value: "plv_envoye", emoji: "📦", key: "mkt.type.plv_envoye" },
+  { value: "plv_installe", emoji: "🖼️", key: "mkt.type.plv_installe" },
+  { value: "visite_terrain", emoji: "🚗", key: "mkt.type.visite_terrain" },
+  { value: "courriel", emoji: "📧", key: "mkt.type.courriel" },
+  { value: "appel", emoji: "📞", key: "mkt.type.appel" },
+  { value: "sms", emoji: "💬", key: "mkt.type.sms" },
+  { value: "formation", emoji: "🎓", key: "mkt.type.formation" },
+  { value: "promo", emoji: "🏷️", key: "mkt.type.promo" },
+  { value: "evenement", emoji: "🎪", key: "mkt.type.evenement" },
+  { value: "autre", emoji: "📝", key: "mkt.type.autre" },
 ];
 
 const STATUSES = [
-  { value: "planifie", label: "Planifié" },
-  { value: "en_cours", label: "En cours" },
-  { value: "complete", label: "Complété" },
-  { value: "annule", label: "Annulé" },
+  { value: "planifie", key: "mkt.status.planifie" },
+  { value: "en_cours", key: "mkt.status.en_cours" },
+  { value: "complete", key: "mkt.status.complete" },
+  { value: "annule", key: "mkt.status.annule" },
 ];
 
 export default function NewActionPage() {
+  const t = useT();
   const router = useRouter();
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [saving, setSaving] = useState(false);
@@ -125,13 +127,13 @@ export default function NewActionPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Erreur lors de la création");
+        setError(data.error || t("mkt.new.errorCreate"));
         return;
       }
 
       router.push("/actions-marketing");
     } catch {
-      setError("Erreur réseau");
+      setError(t("mkt.new.errorNetwork"));
     } finally {
       setSaving(false);
     }
@@ -140,9 +142,9 @@ export default function NewActionPage() {
   return (
     <div className="chanv-surface">
       <div className="mx-auto max-w-3xl px-4 py-8">
-        <h2 className="text-2xl font-bold mb-1">➕ Nouvelle action marketing</h2>
+        <h2 className="text-2xl font-bold mb-1">➕ {t("mkt.new.title")}</h2>
         <p className="text-sm text-slate-500 mb-6">
-          Enregistrer une action terrain, PLV ou campagne
+          {t("mkt.new.subtitle")}
         </p>
 
         {error && (
@@ -155,7 +157,7 @@ export default function NewActionPage() {
           {/* Campagne + Type */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="chanv-label" htmlFor="campaign">Campagne *</label>
+              <label className="chanv-label" htmlFor="campaign">{t("mkt.form.campaign")} *</label>
               <input
                 id="campaign"
                 type="text"
@@ -164,11 +166,11 @@ export default function NewActionPage() {
                 value={campaign}
                 onChange={(e) => setCampaign(e.target.value)}
                 className="chanv-input"
-                placeholder="ex: Lancement Haze 3.5g"
+                placeholder={t("mkt.form.campaignPh")}
               />
             </div>
             <div>
-              <label className="chanv-label" htmlFor="actionType">Type d&apos;action *</label>
+              <label className="chanv-label" htmlFor="actionType">{t("mkt.form.actionType")} *</label>
               <select
                 id="actionType"
                 required
@@ -176,8 +178,8 @@ export default function NewActionPage() {
                 onChange={(e) => setActionType(e.target.value)}
                 className="chanv-select"
               >
-                {ACTION_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {ACTION_TYPES.map((at) => (
+                  <option key={at.value} value={at.value}>{at.emoji} {t(at.key)}</option>
                 ))}
               </select>
             </div>
@@ -186,7 +188,7 @@ export default function NewActionPage() {
           {/* Store + Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="chanv-label" htmlFor="storeId">Store ciblé *</label>
+              <label className="chanv-label" htmlFor="storeId">{t("mkt.form.store")} *</label>
               <select
                 id="storeId"
                 required
@@ -194,7 +196,7 @@ export default function NewActionPage() {
                 onChange={(e) => setStoreId(e.target.value)}
                 className="chanv-select"
               >
-                <option value="">— Sélectionner un store —</option>
+                <option value="">{t("mkt.form.storeSelect")}</option>
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} — {s.city}
@@ -208,7 +210,7 @@ export default function NewActionPage() {
               )}
             </div>
             <div>
-              <label className="chanv-label" htmlFor="actionDate">Date de l&apos;action *</label>
+              <label className="chanv-label" htmlFor="actionDate">{t("mkt.form.date")} *</label>
               <input
                 id="actionDate"
                 type="date"
@@ -223,7 +225,7 @@ export default function NewActionPage() {
           {/* Produit + SKU */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="chanv-label" htmlFor="productName">Produit ciblé</label>
+              <label className="chanv-label" htmlFor="productName">{t("mkt.form.product")}</label>
               <input
                 id="productName"
                 type="text"
@@ -231,7 +233,7 @@ export default function NewActionPage() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 className="chanv-input"
-                placeholder="ex: Bleuh Haze 3.5g"
+                placeholder={t("mkt.form.productPh")}
               />
             </div>
             <div>
@@ -244,7 +246,7 @@ export default function NewActionPage() {
                 onChange={(e) => setSku(e.target.value)}
                 className="chanv-input"
                 list="sku-options"
-                placeholder={storeId ? "Choisir parmi les produits du magasin…" : "ex: 110964_3.5g___"}
+                placeholder={storeId ? t("mkt.form.skuPhStore") : t("mkt.form.skuPh")}
               />
               <datalist id="sku-options">
                 {storeProducts.map((p) => (
@@ -252,7 +254,7 @@ export default function NewActionPage() {
                 ))}
               </datalist>
               {storeId && storeProducts.length === 0 && (
-                <p className="text-xs text-slate-400 mt-1">Aucun produit connu pour ce magasin.</p>
+                <p className="text-xs text-slate-400 mt-1">{t("mkt.form.noProducts")}</p>
               )}
             </div>
           </div>
@@ -260,7 +262,7 @@ export default function NewActionPage() {
           {/* Responsable + Statut */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="chanv-label" htmlFor="responsible">Responsable</label>
+              <label className="chanv-label" htmlFor="responsible">{t("mkt.form.responsible")}</label>
               <input
                 id="responsible"
                 type="text"
@@ -268,11 +270,11 @@ export default function NewActionPage() {
                 value={responsible}
                 onChange={(e) => setResponsible(e.target.value)}
                 className="chanv-input"
-                placeholder="ex: Dany"
+                placeholder={t("mkt.form.responsiblePh")}
               />
             </div>
             <div>
-              <label className="chanv-label" htmlFor="status">Statut</label>
+              <label className="chanv-label" htmlFor="status">{t("mkt.form.status")}</label>
               <select
                 id="status"
                 value={status}
@@ -280,7 +282,7 @@ export default function NewActionPage() {
                 className="chanv-select"
               >
                 {STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
+                  <option key={s.value} value={s.value}>{t(s.key)}</option>
                 ))}
               </select>
             </div>
@@ -289,7 +291,7 @@ export default function NewActionPage() {
           {/* PLV Type + Coût */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="chanv-label" htmlFor="plvType">Type de PLV / Asset</label>
+              <label className="chanv-label" htmlFor="plvType">{t("mkt.form.plvType")}</label>
               <input
                 id="plvType"
                 type="text"
@@ -297,11 +299,11 @@ export default function NewActionPage() {
                 value={plvType}
                 onChange={(e) => setPlvType(e.target.value)}
                 className="chanv-input"
-                placeholder="ex: Affiche vitrine, Présentoir"
+                placeholder={t("mkt.form.plvPh")}
               />
             </div>
             <div>
-              <label className="chanv-label" htmlFor="cost">Coût ($)</label>
+              <label className="chanv-label" htmlFor="cost">{t("mkt.form.cost")}</label>
               <input
                 id="cost"
                 type="number"
@@ -317,7 +319,7 @@ export default function NewActionPage() {
 
           {/* Objectif */}
           <div>
-            <label className="chanv-label" htmlFor="objective">Objectif</label>
+            <label className="chanv-label" htmlFor="objective">{t("mkt.form.objective")}</label>
             <input
               id="objective"
               type="text"
@@ -325,13 +327,13 @@ export default function NewActionPage() {
               value={objective}
               onChange={(e) => setObjective(e.target.value)}
               className="chanv-input"
-              placeholder="ex: Augmenter la visibilité du produit"
+              placeholder={t("mkt.form.objectivePh")}
             />
           </div>
 
           {/* Lien preuve */}
           <div>
-            <label className="chanv-label" htmlFor="proofLink">Lien photo / preuve</label>
+            <label className="chanv-label" htmlFor="proofLink">{t("mkt.form.proofLink")}</label>
             <input
               id="proofLink"
               type="url"
@@ -345,7 +347,7 @@ export default function NewActionPage() {
 
           {/* Notes */}
           <div>
-            <label className="chanv-label" htmlFor="notes">Notes</label>
+            <label className="chanv-label" htmlFor="notes">{t("mkt.form.notes")}</label>
             <textarea
               id="notes"
               maxLength={1000}
@@ -353,7 +355,7 @@ export default function NewActionPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="chanv-input"
-              placeholder="Notes additionnelles…"
+              placeholder={t("mkt.form.notesPh")}
             />
           </div>
 
@@ -364,14 +366,14 @@ export default function NewActionPage() {
               disabled={saving}
               className="chanv-btn-primary"
             >
-              {saving ? "Enregistrement…" : "💾 Enregistrer l'action"}
+              {saving ? t("mkt.form.saving") : `💾 ${t("mkt.form.save")}`}
             </button>
             <button
               type="button"
               onClick={() => router.push("/actions-marketing")}
               className="chanv-btn-secondary"
             >
-              Annuler
+              {t("mkt.form.cancel")}
             </button>
           </div>
         </form>

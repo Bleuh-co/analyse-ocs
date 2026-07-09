@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useT, useLocale } from "@/lib/i18n";
 
 /* ── Types ────────────────────────────────────── */
 interface SheetRow { [key: string]: string }
@@ -16,12 +17,14 @@ const SHEET_OPTIONS: { key: SheetKey; label: string; icon: string; editable: boo
   { key: "db_products_master", label: "DB Products Master", icon: "📙", editable: false },
 ];
 
-const ACTION_LABELS: Record<string, string> = {
-  edit: "✏️ Modification",
-  delete: "🗑️ Suppression",
+const ACTION_LABEL_KEYS: Record<string, string> = {
+  edit: "sheets.actionEdit",
+  delete: "sheets.actionDelete",
 };
 
 export default function SheetsPage() {
+  const t = useT();
+  const locale = useLocale();
   const { session } = useAuth();
   const isGestionnaire =
     session?.role === "gestionnaire" || session?.role === "admin" || session?.role === "superadmin";
@@ -145,7 +148,7 @@ export default function SheetsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setToast({ type: "error", msg: data.error || "Erreur" });
+        setToast({ type: "error", msg: data.error || t("sheets.errorGeneric") });
         return;
       }
 
@@ -157,9 +160,9 @@ export default function SheetsPage() {
       };
       setRows(updatedRows);
       setEditingCell(null);
-      setToast({ type: "success", msg: `✅ Cellule modifiée (${data.changes} champ${data.changes > 1 ? "s" : ""})` });
+      setToast({ type: "success", msg: `✅ ${data.changes > 1 ? t("sheets.cellSavedPlural", { n: data.changes }) : t("sheets.cellSaved", { n: data.changes })}` });
     } catch {
-      setToast({ type: "error", msg: "Erreur réseau" });
+      setToast({ type: "error", msg: t("sheets.errorNetwork") });
     } finally {
       setSaving(false);
     }
@@ -188,15 +191,15 @@ export default function SheetsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setToast({ type: "error", msg: data.error || "Erreur" });
+        setToast({ type: "error", msg: data.error || t("sheets.errorGeneric") });
         return;
       }
 
       setDeleteConfirm(null);
-      setToast({ type: "success", msg: "✅ Ligne supprimée et archivée" });
+      setToast({ type: "success", msg: `✅ ${t("sheets.rowDeleted")}` });
       fetchData(); // Reload
     } catch {
-      setToast({ type: "error", msg: "Erreur réseau" });
+      setToast({ type: "error", msg: t("sheets.errorNetwork") });
     } finally {
       setSaving(false);
     }
@@ -208,7 +211,7 @@ export default function SheetsPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ts = typeof d === "object" && d !== null && "_seconds" in (d as any) ? (d as any)._seconds * 1000 : Date.parse(d as string);
     if (isNaN(ts)) return "—";
-    return new Intl.DateTimeFormat("fr-CA", { dateStyle: "short", timeStyle: "short" }).format(new Date(ts));
+    return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(ts));
   }
 
   return (
@@ -233,10 +236,10 @@ export default function SheetsPage() {
             <h2 className="text-2xl font-bold mb-1">📑 Google Sheets</h2>
             <p className="text-sm text-slate-500">
               {canEdit
-                ? "Cliquer sur une cellule pour la modifier • Archivage automatique avant chaque modification"
+                ? t("sheets.subtitleEditable")
                 : sheetMeta?.editable
-                  ? "Mode lecture seule (rôle gestionnaire requis pour éditer)"
-                  : "Lecture seule"}
+                  ? t("sheets.subtitleReadonlyRole")
+                  : t("sheets.subtitleReadonly")}
             </p>
           </div>
           {canEdit && (
@@ -244,7 +247,7 @@ export default function SheetsPage() {
               onClick={() => setShowLogs(!showLogs)}
               className={`chanv-btn-secondary text-sm ${showLogs ? "ring-2 ring-[var(--chanv-beige)]" : ""}`}
             >
-              📋 {showLogs ? "Masquer" : "Voir"} l&apos;historique
+              📋 {showLogs ? t("sheets.hideHistory") : t("sheets.showHistory")}
             </button>
           )}
         </div>
@@ -290,30 +293,30 @@ export default function SheetsPage() {
         {showLogs && (
           <div className="section-card" style={{ padding: "16px 24px" }}>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
-              📋 Historique des modifications
+              📋 {t("sheets.logsTitle")}
             </h3>
             {logsLoading ? (
               <div className="skeleton-line" style={{ width: "100%", height: 100 }} />
             ) : logs.length === 0 ? (
-              <p className="text-sm text-slate-400">Aucune modification enregistrée.</p>
+              <p className="text-sm text-slate-400">{t("sheets.noLogs")}</p>
             ) : (
               <div style={{ maxHeight: 300, overflowY: "auto" }}>
                 <table className="chanv-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Action</th>
-                      <th>Onglet</th>
-                      <th>Ligne</th>
-                      <th>Détails</th>
-                      <th>Par</th>
+                      <th>{t("sheets.colDate")}</th>
+                      <th>{t("sheets.colAction")}</th>
+                      <th>{t("sheets.colTab")}</th>
+                      <th>{t("sheets.colRow")}</th>
+                      <th>{t("sheets.colDetails")}</th>
+                      <th>{t("sheets.colBy")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.map((log) => (
                       <tr key={log.id}>
                         <td className="text-xs whitespace-nowrap">{formatLogDate(log.performed_at)}</td>
-                        <td className="text-xs">{ACTION_LABELS[log.action] || log.action}</td>
+                        <td className="text-xs">{ACTION_LABEL_KEYS[log.action] ? t(ACTION_LABEL_KEYS[log.action]) : log.action}</td>
                         <td className="text-xs">{log.tab}</td>
                         <td className="text-xs text-center">{log.row_index}</td>
                         <td className="text-xs">
@@ -338,12 +341,12 @@ export default function SheetsPage() {
         {/* Search + info bar */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="text-sm text-slate-500">
-            {loading ? "Chargement…" : `${filtered.length} / ${rowCount} lignes`}
+            {loading ? t("sheets.loading") : t("sheets.rowsCount", { shown: filtered.length, total: rowCount })}
             {activeTab && <span className="ml-2 text-xs text-slate-400">• {activeTab}</span>}
           </div>
           <input
             type="search"
-            placeholder="Rechercher dans les données…"
+            placeholder={t("sheets.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="chanv-input text-sm"
@@ -366,14 +369,14 @@ export default function SheetsPage() {
                     {headers.map((h) => (
                       <th key={h}>{h}</th>
                     ))}
-                    {canEdit && <th style={{ width: 60 }}>Actions</th>}
+                    {canEdit && <th style={{ width: 60 }}>{t("sheets.colActions")}</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={headers.length + (canEdit ? 2 : 1)} className="text-center text-slate-400 py-8">
-                        Aucune donnée
+                        {t("sheets.noData")}
                       </td>
                     </tr>
                   ) : (
@@ -388,7 +391,7 @@ export default function SheetsPage() {
                               className={`text-sm ${canEdit ? "cursor-pointer hover:bg-[var(--chanv-fibre)]" : ""}`}
                               style={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                               onClick={() => !isEditing && startEdit(i, h)}
-                              title={canEdit ? "Cliquer pour modifier" : undefined}
+                              title={canEdit ? t("sheets.clickToEdit") : undefined}
                             >
                               {isEditing ? (
                                 <div className="flex items-center gap-1">
@@ -409,14 +412,14 @@ export default function SheetsPage() {
                                     onClick={(e) => { e.stopPropagation(); saveEdit(); }}
                                     disabled={saving}
                                     className="text-green-600 hover:text-green-800 text-sm font-bold"
-                                    title="Sauvegarder"
+                                    title={t("sheets.saveTooltip")}
                                   >
                                     ✓
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setEditingCell(null); }}
                                     className="text-red-400 hover:text-red-600 text-sm"
-                                    title="Annuler"
+                                    title={t("sheets.cancelTooltip")}
                                   >
                                     ✕
                                   </button>
@@ -436,20 +439,20 @@ export default function SheetsPage() {
                                   disabled={saving}
                                   className="text-[11px] text-red-600 font-bold hover:underline"
                                 >
-                                  Confirmer
+                                  {t("sheets.confirm")}
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirm(null)}
                                   className="text-[11px] text-slate-400 hover:underline"
                                 >
-                                  Non
+                                  {t("sheets.no")}
                                 </button>
                               </div>
                             ) : (
                               <button
                                 onClick={() => setDeleteConfirm(i)}
                                 className="text-slate-400 hover:text-red-500 text-sm transition-colors"
-                                title="Supprimer cette ligne"
+                                title={t("sheets.deleteRowTooltip")}
                               >
                                 🗑️
                               </button>
@@ -464,7 +467,7 @@ export default function SheetsPage() {
             </div>
             {filtered.length > 500 && (
               <p className="text-xs text-slate-400 text-center mt-2">
-                Affichage limité à 500 lignes sur {filtered.length}
+                {t("sheets.displayLimit", { n: filtered.length })}
               </p>
             )}
           </div>

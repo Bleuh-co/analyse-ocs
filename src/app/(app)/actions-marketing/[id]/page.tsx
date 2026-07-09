@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import { useT, useLocale } from "@/lib/i18n";
 import { KpiCard, KpiRow } from "@/components/KpiCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -19,32 +20,31 @@ interface Impact {
   reaction_days: number | null;
 }
 
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  plv_envoye: "📦 PLV envoyé",
-  plv_installe: "🖼️ PLV installé",
-  visite_terrain: "🚗 Visite terrain",
-  courriel: "📧 Courriel",
-  appel: "📞 Appel",
-  sms: "💬 SMS",
-  formation: "🎓 Formation",
-  promo: "🏷️ Promo",
-  evenement: "🎪 Événement",
-  autre: "📝 Autre",
+const ACTION_TYPE_META: Record<string, { emoji: string; key: string }> = {
+  plv_envoye: { emoji: "📦", key: "mkt.type.plv_envoye" },
+  plv_installe: { emoji: "🖼️", key: "mkt.type.plv_installe" },
+  visite_terrain: { emoji: "🚗", key: "mkt.type.visite_terrain" },
+  courriel: { emoji: "📧", key: "mkt.type.courriel" },
+  appel: { emoji: "📞", key: "mkt.type.appel" },
+  sms: { emoji: "💬", key: "mkt.type.sms" },
+  formation: { emoji: "🎓", key: "mkt.type.formation" },
+  promo: { emoji: "🏷️", key: "mkt.type.promo" },
+  evenement: { emoji: "🎪", key: "mkt.type.evenement" },
+  autre: { emoji: "📝", key: "mkt.type.autre" },
 };
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  planifie: { label: "Planifié", color: "#718096" },
-  en_cours: { label: "En cours", color: "#D69E2E" },
-  complete: { label: "Complété", color: "#38A169" },
-  annule: { label: "Annulé", color: "#E53E3E" },
+const STATUS_META: Record<string, { key: string; color: string }> = {
+  planifie: { key: "mkt.status.planifie", color: "#718096" },
+  en_cours: { key: "mkt.status.en_cours", color: "#D69E2E" },
+  complete: { key: "mkt.status.complete", color: "#38A169" },
+  annule: { key: "mkt.status.annule", color: "#E53E3E" },
 };
-
-function formatNum(n: number): string {
-  return new Intl.NumberFormat("fr-CA").format(n);
-}
 
 export default function ActionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const t = useT();
+  const locale = useLocale();
+  const formatNum = (n: number): string => new Intl.NumberFormat(locale).format(n);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [action, setAction] = useState<any>(null);
   const [impact, setImpact] = useState<Impact | null>(null);
@@ -78,9 +78,9 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
       <div className="chanv-surface">
         <div className="mx-auto max-w-5xl px-4 py-8">
           <div className="section-card p-8 text-center">
-            <p className="text-slate-400">Action introuvable</p>
+            <p className="text-slate-400">{t("mkt.detail.notFound")}</p>
             <Link href="/actions-marketing" className="text-[var(--chanv-beige)] mt-2 inline-block">
-              ← Retour
+              ← {t("mkt.detail.back")}
             </Link>
           </div>
         </div>
@@ -88,13 +88,14 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const statusInfo = STATUS_LABELS[action.status] || STATUS_LABELS.planifie;
+  const statusInfo = STATUS_META[action.status] || STATUS_META.planifie;
+  const typeInfo = ACTION_TYPE_META[action.action_type];
 
   // Impact chart data
   const impactChartData = impact
     ? [
-        { label: `14j avant`, units: impact.units_before, type: "before" },
-        { label: `14j après`, units: impact.units_after, type: "after" },
+        { label: t("mkt.detail.chartBefore"), units: impact.units_before, type: "before" },
+        { label: t("mkt.detail.chartAfter"), units: impact.units_after, type: "after" },
       ]
     : [];
 
@@ -106,7 +107,7 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
           href="/actions-marketing"
           className="text-sm text-[var(--chanv-beige)] hover:underline"
         >
-          ← Retour aux actions
+          ← {t("mkt.detail.backToList")}
         </Link>
 
         {/* Header */}
@@ -115,18 +116,18 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">
-                  {ACTION_TYPE_LABELS[action.action_type]?.split(" ")[0] || "📣"}
+                  {typeInfo?.emoji || "📣"}
                 </span>
                 <h2 className="text-xl font-bold">{action.campaign}</h2>
                 <span
                   className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white"
                   style={{ background: statusInfo.color }}
                 >
-                  {statusInfo.label}
+                  {t(statusInfo.key)}
                 </span>
               </div>
               <p className="text-sm text-slate-500">
-                {ACTION_TYPE_LABELS[action.action_type] || action.action_type}
+                {typeInfo ? `${typeInfo.emoji} ${t(typeInfo.key)}` : action.action_type}
                 {" • "}
                 {action.action_date}
                 {action.responsible && ` • ${action.responsible}`}
@@ -134,7 +135,7 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
             </div>
             {action.cost != null && (
               <div className="text-right">
-                <div className="text-sm text-slate-500">Coût</div>
+                <div className="text-sm text-slate-500">{t("mkt.detail.cost")}</div>
                 <div className="text-lg font-bold">{action.cost.toFixed(2)} $</div>
               </div>
             )}
@@ -143,33 +144,33 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
           {/* Détails */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-4 border-t border-[var(--chanv-fibre)]">
             <div>
-              <div className="text-xs text-slate-400 uppercase tracking-wider">Store</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider">{t("mkt.detail.store")}</div>
               <div className="font-medium">{action.store_name}</div>
               <div className="text-xs text-slate-500">
                 {[action.store_city, action.store_region].filter(Boolean).join(" • ")}
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-400 uppercase tracking-wider">Produit</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider">{t("mkt.detail.product")}</div>
               <div className="font-medium">{action.product_name || "—"}</div>
               {action.sku && <div className="text-xs text-slate-500 font-mono">{action.sku}</div>}
             </div>
             <div>
-              <div className="text-xs text-slate-400 uppercase tracking-wider">PLV / Asset</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider">{t("mkt.detail.plv")}</div>
               <div className="font-medium">{action.plv_type || "—"}</div>
             </div>
           </div>
 
           {action.objective && (
             <div className="mt-4 pt-3 border-t border-[var(--chanv-fibre)]">
-              <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Objectif</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">{t("mkt.detail.objective")}</div>
               <p className="text-sm">{action.objective}</p>
             </div>
           )}
 
           {action.notes && (
             <div className="mt-3">
-              <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Notes</div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">{t("mkt.detail.notes")}</div>
               <p className="text-sm text-slate-600">{action.notes}</p>
             </div>
           )}
@@ -182,7 +183,7 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
                 rel="noopener noreferrer"
                 className="text-sm text-[var(--chanv-beige)] hover:underline"
               >
-                📸 Voir la preuve / photo
+                📸 {t("mkt.detail.proof")}
               </a>
             </div>
           )}
@@ -191,42 +192,45 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
         {/* Impact Section */}
         {impact && (
           <>
-            <h3 className="text-lg font-bold">📈 Mesure d&apos;impact (±14 jours)</h3>
+            <h3 className="text-lg font-bold">📈 {t("mkt.detail.impactTitle")}</h3>
 
             <KpiRow>
               <KpiCard
                 icon="📉"
-                label="Avant l'action"
+                label={t("mkt.detail.before")}
                 value={formatNum(impact.units_before)}
-                subtitle="unités (14 jours)"
+                subtitle={t("mkt.detail.unitsSub")}
                 loading={false}
               />
               <KpiCard
                 icon="📈"
-                label="Après l'action"
+                label={t("mkt.detail.after")}
                 value={formatNum(impact.units_after)}
-                subtitle="unités (14 jours)"
+                subtitle={t("mkt.detail.unitsSub")}
                 loading={false}
               />
               <KpiCard
                 icon={impact.lift_units >= 0 ? "🚀" : "📉"}
-                label="Lift"
+                label={t("mkt.detail.lift")}
                 value={`${impact.lift_units >= 0 ? "+" : ""}${formatNum(impact.lift_units)}`}
                 subtitle={
                   impact.lift_percent !== null
                     ? `${impact.lift_percent >= 0 ? "+" : ""}${impact.lift_percent}%`
-                    : "Pas de baseline"
+                    : t("mkt.detail.noBaseline")
                 }
                 trend={impact.lift_units > 0 ? "up" : impact.lift_units < 0 ? "down" : "neutral"}
                 loading={false}
               />
               <KpiCard
                 icon={impact.reacted ? "✅" : "❌"}
-                label="Réaction"
-                value={impact.reacted ? "Oui" : "Non"}
+                label={t("mkt.detail.reaction")}
+                value={impact.reacted ? t("mkt.detail.yes") : t("mkt.detail.no")}
                 subtitle={
                   impact.reaction_days !== null
-                    ? `${impact.reaction_days} jour${impact.reaction_days !== 1 ? "s" : ""} après`
+                    ? t(
+                        impact.reaction_days === 1 ? "mkt.detail.dayAfter" : "mkt.detail.daysAfter",
+                        { n: impact.reaction_days },
+                      )
                     : undefined
                 }
                 loading={false}
@@ -236,14 +240,14 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
             {/* Before/After Chart */}
             <div className="section-card" style={{ padding: "24px" }}>
               <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
-                Comparaison avant / après
+                {t("mkt.detail.compare")}
               </h4>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={impactChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--chanv-fibre)" />
                   <XAxis dataKey="label" tick={{ fontSize: 13 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => [formatNum(v), "Unités"]} />
+                  <Tooltip formatter={(v: number) => [formatNum(v), t("mkt.detail.units")]} />
                   <ReferenceLine y={0} stroke="#ccc" />
                   <Bar dataKey="units" radius={[6, 6, 0, 0]} maxBarSize={80}>
                     {impactChartData.map((entry, i) => (
@@ -262,8 +266,7 @@ export default function ActionDetailPage({ params }: { params: Promise<{ id: str
         {!impact && (
           <div className="section-card p-8 text-center">
             <p className="text-slate-400 text-sm">
-              Pas assez de données pour calculer l&apos;impact. Les données de ventes
-              OCS doivent couvrir la période autour de la date d&apos;action.
+              {t("mkt.detail.noData")}
             </p>
           </div>
         )}

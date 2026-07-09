@@ -1,13 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/lib/i18n";
 
 /* ────────────────────────────────────────────────
  * Page Aide / FAQ — Analyse OCS
  * Explique : à quoi sert l'app, comment l'utiliser,
  * comment les données sont récupérées (import + matching)
  * et comment chaque chiffre est calculé.
+ * Textes trilingues via useT() ; les valeurs peuvent
+ * contenir **gras**, *italique* et `code` (rendu par <Rich/>).
  * ──────────────────────────────────────────────── */
+
+/* ── Mini-rendu riche : **gras**, *italique*, `code` ── */
+function Rich({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.startsWith("**") && p.endsWith("**")) return <strong key={i}>{p.slice(2, -2)}</strong>;
+        if (p.startsWith("`") && p.endsWith("`")) return <code key={i}>{p.slice(1, -1)}</code>;
+        if (p.startsWith("*") && p.endsWith("*") && p.length > 2) return <em key={i}>{p.slice(1, -1)}</em>;
+        return p;
+      })}
+    </>
+  );
+}
 
 /* ── Petits composants de présentation ─────────── */
 
@@ -91,89 +109,16 @@ function Formula({
 }
 
 /* ── FAQ accordéon ─────────────────────────────── */
-const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
-  {
-    q: "Mon magasin n'apparaît pas après un import — pourquoi ?",
-    a: (
-      <>
-        Le magasin n'a pas pu être <strong>matché</strong>. Le matching se fait sur le{" "}
-        <strong>code postal normalisé</strong> ; si le code postal du fichier OCS est absent,
-        mal formaté ou introuvable parmi les stores existants, la ligne est marquée{" "}
-        <code>unmatched</code> et n'est pas écrite. Vérifiez l'aperçu avant confirmation :
-        les lignes non matchées y sont listées.
-      </>
-    ),
-  },
-  {
-    q: "Les unités du dashboard ne correspondent pas au fichier brut ?",
-    a: (
-      <>
-        C'est attendu, pour deux raisons : (1) le dashboard{" "}
-        <strong>ignore les stores marqués archivés</strong> et les stores inconnus ; (2) seules
-        les lignes <em>matchées</em> et confirmées sont écrites en base.
-      </>
-    ),
-  },
-  {
-    q: "Que veut dire « le magasin a réagi » dans une action marketing ?",
-    a: (
-      <>
-        Après une action, l'app regarde les 14 jours suivants pour le même magasin (et le SKU
-        ciblé s'il est renseigné). Si au moins 1 unité a été commandée sur cette fenêtre,{" "}
-        <strong>réagi = oui</strong>, et le <strong>temps de réaction</strong> est le nombre de
-        jours jusqu'à la première commande post-action.
-      </>
-    ),
-  },
-  {
-    q: "Le lift affiche « — » au lieu d'un pourcentage ?",
-    a: (
-      <>
-        Le lift en % n'est calculé que si les ventes <strong>avant</strong> l'action sont
-        supérieures à 0 (division impossible sinon). Le lift en unités (après − avant) reste,
-        lui, toujours affiché.
-      </>
-    ),
-  },
-  {
-    q: "Puis-je modifier un magasin ou une donnée sans être admin ?",
-    a: (
-      <>
-        Oui : le rôle <strong>gestionnaire</strong> (grade Hub « Gestionnaire ») peut importer,
-        créer / éditer des stores, éditer les Sheets CRM et gérer les actions marketing. Seule
-        la <strong>suppression</strong> de stores exige le rôle <strong>administrateur</strong>.
-        Le rôle <strong>membre</strong> (grade « Consulter ») est en lecture seule.
-      </>
-    ),
-  },
-  {
-    q: "Que signifie « store archivé » ?",
-    a: (
-      <>
-        Un store est <strong>archivé</strong> quand un gestionnaire ou un administrateur le
-        marque comme tel (champ <code>archived</code>) — il est alors exclu des dashboards et
-        de la liste par défaut. Il n'y a pas d'archivage automatique : un store inactif reste
-        visible tant qu'il n'est pas archivé manuellement.
-      </>
-    ),
-  },
-  {
-    q: "Est-ce que mes fichiers xlsx sont stockés quelque part ?",
-    a: (
-      <>
-        Non. Les fichiers sont <strong>parsés à la volée</strong> en mémoire puis jetés. Seules
-        les données extraites (stores + produits) sont écrites en base, et un journal léger de
-        l'import est conservé dans la collection <code>ontario_uploads</code>.
-      </>
-    ),
-  },
-];
-
 function FaqAccordion() {
+  const t = useT();
   const [open, setOpen] = useState<number | null>(0);
+  const items = [1, 2, 3, 4, 5, 6, 7].map((i) => ({
+    q: t(`help.faq.q${i}`),
+    a: t(`help.faq.a${i}`),
+  }));
   return (
     <div className="space-y-2">
-      {FAQ_ITEMS.map((item, i) => {
+      {items.map((item, i) => {
         const isOpen = open === i;
         return (
           <div
@@ -194,7 +139,7 @@ function FaqAccordion() {
             </button>
             {isOpen && (
               <div className="px-5 pb-4 text-sm text-slate-600 leading-relaxed animate-[chanvFadeIn_0.25s_ease]">
-                {item.a}
+                <Rich text={item.a} />
               </div>
             )}
           </div>
@@ -204,47 +149,48 @@ function FaqAccordion() {
   );
 }
 
-/* ── Sommaire ──────────────────────────────────── */
-const TOC = [
-  { id: "presentation", label: "Présentation" },
-  { id: "roles", label: "Rôles & permissions" },
-  { id: "import", label: "Import & récupération des données" },
-  { id: "calculs", label: "Méthodes de calcul" },
-  { id: "marketing", label: "Actions marketing & impact" },
-  { id: "sheets", label: "Google Sheets" },
-  { id: "faq", label: "Questions fréquentes" },
-];
-
 export default function AidePage() {
+  const t = useT();
+
+  /* ── Sommaire ──────────────────────────────── */
+  const toc = [
+    { id: "presentation", label: t("help.toc.presentation") },
+    { id: "roles", label: t("help.toc.roles") },
+    { id: "import", label: t("help.toc.import") },
+    { id: "calculs", label: t("help.toc.calc") },
+    { id: "marketing", label: t("help.toc.marketing") },
+    { id: "sheets", label: t("help.toc.sheets") },
+    { id: "faq", label: t("help.toc.faq") },
+  ];
+
   return (
     <div className="chanv-surface">
       <div className="mx-auto max-w-4xl px-4 py-8 space-y-10">
         {/* Hero */}
         <header className="text-center space-y-2">
           <div className="text-4xl">📖</div>
-          <h1 className="text-3xl font-black tracking-tight m-0">Aide & FAQ</h1>
+          <h1 className="text-3xl font-black tracking-tight m-0">{t("help.title")}</h1>
           <p className="text-sm text-slate-500 max-w-xl mx-auto">
-            Comment utiliser Analyse OCS, comment les données sont récupérées depuis vos
-            fichiers, et comment chaque chiffre est calculé.
+            {t("help.subtitle")}
           </p>
         </header>
 
         {/* Sommaire */}
         <nav className="section-card" style={{ padding: "18px 22px" }}>
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Sommaire
+            {t("help.toc.title")}
           </h3>
           <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-2 list-none m-0 p-0">
-            {TOC.map((t, i) => (
-              <li key={t.id}>
+            {toc.map((item, i) => (
+              <li key={item.id}>
                 <a
-                  href={`#${t.id}`}
+                  href={`#${item.id}`}
                   className="flex items-center gap-2 text-sm text-slate-600 hover:text-chanv-terre transition-colors"
                 >
                   <span className="text-xs font-bold text-[var(--chanv-beige)] w-4">
                     {i + 1}
                   </span>
-                  {t.label}
+                  {item.label}
                 </a>
               </li>
             ))}
@@ -252,266 +198,210 @@ export default function AidePage() {
         </nav>
 
         {/* 1. Présentation */}
-        <Section id="presentation" n={1} title="Présentation">
+        <Section id="presentation" n={1} title={t("help.sec.presentation")}>
           <p className="text-sm text-slate-600 leading-relaxed">
-            <strong>Analyse OCS</strong> centralise les ventes de Bleuh vers les détaillants
-            (OCS — Ontario). Vous importez les fichiers de ventes, l'app fait le lien avec vos
-            magasins, puis affiche des tableaux de bord, mesure l'impact de vos actions
-            marketing et donne accès aux données CRM.
+            <Rich text={t("help.intro")} />
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Card title="📤 Importer">
-              Chargez un fichier xlsx OCS. L'app extrait et rapproche automatiquement chaque
-              ligne d'un magasin connu.
+            <Card title={`📤 ${t("help.card.import.title")}`}>
+              <Rich text={t("help.card.import.body")} />
             </Card>
-            <Card title="📊 Dashboard">
-              Unités vendues, vélocité, top produits et magasins, évolution par mois, jour,
-              région et catégorie.
+            <Card title={`📊 ${t("help.card.dash.title")}`}>
+              <Rich text={t("help.card.dash.body")} />
             </Card>
-            <Card title="📣 Marketing">
-              Consignez vos actions (PLV, promos…) et mesurez leur effet réel sur les ventes.
+            <Card title={`📣 ${t("help.card.mkt.title")}`}>
+              <Rich text={t("help.card.mkt.body")} />
             </Card>
-            <Card title="📑 Sheets">
-              Consultez et éditez les données CRM (Historique, Segmentation, Products Master).
+            <Card title={`📑 ${t("help.card.sheets.title")}`}>
+              <Rich text={t("help.card.sheets.body")} />
             </Card>
           </div>
         </Section>
 
         {/* 2. Rôles */}
-        <Section id="roles" n={2} title="Rôles & permissions">
+        <Section id="roles" n={2} title={t("help.sec.roles")}>
           <p className="text-sm text-slate-600">
-            Votre rôle détermine ce que vous pouvez faire. Il est géré par le SSO du Hub Chanv.
+            {t("help.roles.intro")}
           </p>
           <div className="section-card" style={{ padding: "12px 16px" }}>
             <table className="chanv-table">
               <thead>
                 <tr>
-                  <th>Rôle</th>
-                  <th>Peut faire</th>
+                  <th>{t("help.roles.thRole")}</th>
+                  <th>{t("help.roles.thCan")}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="font-semibold">👁️ Membre</td>
+                  <td className="font-semibold">👁️ {t("help.roles.member")}</td>
                   <td>
-                    Consulter : dashboard, stores, sheets, historique (lecture seule).
-                    Correspond au grade Hub « Consulter ».
+                    <Rich text={t("help.roles.memberDesc")} />
                   </td>
                 </tr>
                 <tr>
-                  <td className="font-semibold">🔧 Gestionnaire</td>
+                  <td className="font-semibold">🔧 {t("help.roles.gest")}</td>
                   <td>
-                    Tout le membre + importer des fichiers, créer / éditer des stores, éditer
-                    les Sheets CRM, gérer les actions marketing
+                    <Rich text={t("help.roles.gestDesc")} />
                   </td>
                 </tr>
                 <tr>
-                  <td className="font-semibold">⭐ Administrateur</td>
-                  <td>Tout le gestionnaire + supprimer des stores</td>
+                  <td className="font-semibold">⭐ {t("help.roles.admin")}</td>
+                  <td><Rich text={t("help.roles.adminDesc")} /></td>
                 </tr>
                 <tr>
-                  <td className="font-semibold">👑 Super Administrateur</td>
-                  <td>Accès complet</td>
+                  <td className="font-semibold">👑 {t("help.roles.superadmin")}</td>
+                  <td><Rich text={t("help.roles.superadminDesc")} /></td>
                 </tr>
               </tbody>
             </table>
           </div>
           <Callout variant="info">
-            Toutes les routes exigent une session valide ; les écritures (import, édition,
-            suppression) vérifient en plus le rôle côté serveur — impossible de contourner
-            depuis le navigateur.
+            <Rich text={t("help.roles.callout")} />
           </Callout>
         </Section>
 
         {/* 3. Import & récupération */}
-        <Section id="import" n={3} title="Import & récupération des données">
+        <Section id="import" n={3} title={t("help.sec.import")}>
           <p className="text-sm text-slate-600">
-            Depuis <strong>Importer</strong>, déposez un fichier xlsx OCS. Voici ce qui se passe :
+            <Rich text={t("help.import.intro")} />
           </p>
           <div className="space-y-3">
-            <Card title="1. Lecture des colonnes">
-              L'app reconnaît les colonnes OCS standard : <code>SKU</code>,{" "}
-              <code>Item Name</code>, <code>Category</code>, <code>Brand</code>,{" "}
-              <code>Store Name</code>, <code>Store Address</code>, <code>Region</code>,{" "}
-              <code>City</code>, <code>Order Date</code>, <code>Units Sold</code>,{" "}
-              <code>Item Barcode</code>… (les variantes en snake_case sont aussi acceptées).
+            <Card title={t("help.import.s1.title")}>
+              <Rich text={t("help.import.s1.body")} />
             </Card>
-            <Card title="2. Nettoyage & normalisation">
+            <Card title={t("help.import.s2.title")}>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Les dates Excel (numéro de série) sont converties en dates ISO.</li>
-                <li>
-                  L'adresse est décomposée en <strong>rue / ville / province / code postal</strong>.
-                </li>
-                <li>
-                  Le code postal est normalisé (<code>K4R 1E1</code> → <code>K4R1E1</code>) pour
-                  servir de clé de rapprochement.
-                </li>
-                <li>
-                  Le code-barres GTIN-14 est ramené au GTIN-12 pour l'enrichissement produit.
-                </li>
+                <li><Rich text={t("help.import.s2.li1")} /></li>
+                <li><Rich text={t("help.import.s2.li2")} /></li>
+                <li><Rich text={t("help.import.s2.li3")} /></li>
+                <li><Rich text={t("help.import.s2.li4")} /></li>
               </ul>
             </Card>
-            <Card title="3. Rapprochement (matching) avec vos magasins">
-              Chaque ligne est comparée aux stores existants via l'<strong>index de codes
-              postaux</strong>. Si plusieurs magasins partagent le même code postal,
-              l'adresse (rue) départage — à défaut, le premier candidat est retenu.
-              Trois statuts possibles :
+            <Card title={t("help.import.s3.title")}>
+              <Rich text={t("help.import.s3.body")} />
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="rounded-full bg-green-100 text-green-800 px-3 py-1 text-xs font-semibold">
-                  matched — rattachée à un magasin
+                  {t("help.import.s3.matched")}
                 </span>
                 <span className="rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-semibold">
-                  unmatched — aucun magasin trouvé
+                  {t("help.import.s3.unmatched")}
                 </span>
                 <span className="rounded-full bg-red-100 text-red-800 px-3 py-1 text-xs font-semibold">
-                  invalid — ligne inexploitable
+                  {t("help.import.s3.invalid")}
                 </span>
               </div>
             </Card>
-            <Card title="4. Aperçu → Confirmation → Écriture">
-              Vous voyez un aperçu (matched / unmatched / invalid) <strong>avant</strong> toute
-              écriture. À la confirmation, les données sont écrites en base par lots (max 499
-              opérations) et un journal d'import est conservé.
+            <Card title={t("help.import.s4.title")}>
+              <Rich text={t("help.import.s4.body")} />
             </Card>
           </div>
           <Callout variant="info">
-            ℹ️ <strong>Donnée conservée :</strong> chaque import alimente un{" "}
-            <strong>journal cumulatif des ventes</strong> (1 entrée par magasin × produit ×
-            date de commande) — réimporter le même fichier ne crée pas de doublon. La fiche
-            magasin affiche en plus l'état de la <em>dernière commande connue</em> par produit.
-            Les lignes « Total » et « Applied filters » en fin de fichier sont automatiquement
-            ignorées.
+            <Rich text={t("help.import.callout1")} />
           </Callout>
           <Callout variant="tip">
-            💡 Astuce : si beaucoup de lignes sont <code>unmatched</code>, créez d'abord les
-            magasins manquants dans <strong>Stores</strong> (avec leur code postal), puis
-            relancez l'import.
+            <Rich text={t("help.import.callout2")} />
           </Callout>
         </Section>
 
         {/* 4. Méthodes de calcul */}
-        <Section id="calculs" n={4} title="Méthodes de calcul">
+        <Section id="calculs" n={4} title={t("help.sec.calc")}>
           <p className="text-sm text-slate-600">
-            Le dashboard agrège tous les produits rattachés à des magasins actifs. Les stores{" "}
-            <strong>archivés ou inconnus sont exclus</strong>. Les filtres région et plage de
-            dates s'appliquent avant agrégation.
+            <Rich text={t("help.calc.intro")} />
           </p>
 
           <Callout variant="info">
-            ℹ️ Les agrégations utilisent le <strong>journal cumulatif des ventes</strong> :
-            chaque commande importée compte une fois, à sa date réelle. L'historique couvre{" "}
-            <strong>février 2025 à aujourd'hui</strong> (import du document Bleuh_Sales_Data +
-            imports hebdomadaires).
+            <Rich text={t("help.calc.callout1")} />
           </Callout>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
-            Par produit
+            {t("help.calc.perProduct")}
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Unités vendues" formula="Σ units_sold" note="Somme, sur tous les magasins, des unités de la dernière commande connue." />
-            <Formula label="Magasins acheteurs" formula="count(distinct store_id)" note="Nombre de magasins distincts ayant déjà commandé ce SKU." />
-            <Formula label="Première / dernière commande" formula="min · max (last_order_date)" note="Bornes sur les dernières commandes connues par magasin." />
-            <Formula label="Catégorie / marque" formula="depuis la ligne OCS ou Products Master" />
+            <Formula label={t("help.f.units.label")} formula="Σ units_sold" note={t("help.f.units.note")} />
+            <Formula label={t("help.f.buyers.label")} formula="count(distinct store_id)" note={t("help.f.buyers.note")} />
+            <Formula label={t("help.f.firstLast.label")} formula="min · max (last_order_date)" note={t("help.f.firstLast.note")} />
+            <Formula label={t("help.f.catBrand.label")} formula={t("help.f.catBrand.formula")} />
           </div>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
-            Par magasin
+            {t("help.calc.perStore")}
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Unités totales" formula="Σ units_sold" note="Somme des dernières commandes connues, tous produits du magasin." />
-            <Formula label="SKU distincts" formula="count(distinct sku)" note="Diversité de l'assortiment commandé." />
-            <Formula label="Première / dernière commande" formula="min · max (last_order_date)" />
+            <Formula label={t("help.f.totalUnits.label")} formula="Σ units_sold" note={t("help.f.totalUnits.note")} />
+            <Formula label={t("help.f.skus.label")} formula="count(distinct sku)" note={t("help.f.skus.note")} />
+            <Formula label={t("help.f.firstLast.label")} formula="min · max (last_order_date)" />
           </div>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
-            Séries temporelles & répartitions
+            {t("help.calc.timeseries")}
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Par mois" formula="group by last_order_date[YYYY-MM]" note="Unités groupées par mois de la dernière commande connue." />
-            <Formula label="Par jour de semaine" formula="group by weekday(last_order_date)" note="Dim → Sam, pour repérer les jours de commande." />
-            <Formula label="Par région" formula="Σ units_sold group by region" />
-            <Formula label="Par catégorie" formula="Σ units_sold group by sub_category" note="Sous-catégorie OCS : Dried Flower, Vapes, Concentrates, Pre-Rolled…" />
+            <Formula label={t("help.f.byMonth.label")} formula="group by last_order_date[YYYY-MM]" note={t("help.f.byMonth.note")} />
+            <Formula label={t("help.f.byWeekday.label")} formula="group by weekday(last_order_date)" note={t("help.f.byWeekday.note")} />
+            <Formula label={t("help.f.byRegion.label")} formula="Σ units_sold group by region" />
+            <Formula label={t("help.f.byCategory.label")} formula="Σ units_sold group by sub_category" note={t("help.f.byCategory.note")} />
           </div>
           <Callout variant="info">
-            Toutes les agrégations sont recalculées à chaque chargement à partir d'une seule
-            requête <code>collectionGroup</code> sur les produits — les chiffres reflètent
-            toujours l'état courant de la base. Les dates héritées de l'ancien système
-            (numéros de série Excel) sont automatiquement converties.
+            <Rich text={t("help.calc.callout2")} />
           </Callout>
 
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mt-2">
-            Onglet Profil (THC/CBD)
+            {t("help.calc.profile")}
           </h3>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Jointure référentiel" formula="GTIN-12, sinon Retailer SKU" note="Chaque produit vendu est relié à DB-Products-Master par son code GTIN." />
-            <Formula label="THC / CBD" formula="point médian de la plage" note="« 25-31 » → 28 % ; « N/A » → non renseigné." />
-            <Formula label="Corrélation" formula="Pearson (THC × unités)" note="Indicative : ne prouve pas de causalité." />
+            <Formula label={t("help.f.join.label")} formula={t("help.f.join.formula")} note={t("help.f.join.note")} />
+            <Formula label={t("help.f.thc.label")} formula={t("help.f.thc.formula")} note={t("help.f.thc.note")} />
+            <Formula label={t("help.f.corr.label")} formula={t("help.f.corr.formula")} note={t("help.f.corr.note")} />
           </div>
         </Section>
 
         {/* 5. Marketing & impact */}
-        <Section id="marketing" n={5} title="Actions marketing & mesure d'impact">
+        <Section id="marketing" n={5} title={t("help.sec.marketing")}>
           <p className="text-sm text-slate-600">
-            Enregistrez une action (campagne, PLV, promo…) liée à un magasin et éventuellement à
-            un SKU. L'app compare ensuite les ventes <strong>avant</strong> et <strong>après</strong>{" "}
-            pour estimer l'effet.
+            <Rich text={t("help.mkt.intro")} />
           </p>
-          <Card title="Fenêtre d'observation : 14 jours">
+          <Card title={t("help.mkt.window.title")}>
             <ul className="list-disc pl-5 space-y-1">
-              <li>
-                <strong>Avant</strong> = ventes du magasin (SKU ciblé si renseigné) sur les 14
-                jours <em>précédant</em> la date d'action.
-              </li>
-              <li>
-                <strong>Après</strong> = ventes sur les 14 jours <em>suivant</em> la date d'action.
-              </li>
+              <li><Rich text={t("help.mkt.window.li1")} /></li>
+              <li><Rich text={t("help.mkt.window.li2")} /></li>
             </ul>
           </Card>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Formula label="Lift (unités)" formula="unités_après − unités_avant" />
-            <Formula label="Lift (%)" formula="(lift / unités_avant) × 100" note="Affiché seulement si unités_avant > 0." />
-            <Formula label="A réagi ?" formula="unités_après > 0" />
-            <Formula label="Temps de réaction" formula="jours entre l'action et la 1ʳᵉ commande" />
+            <Formula label={t("help.f.liftU.label")} formula="unités_après − unités_avant" />
+            <Formula label={t("help.f.liftP.label")} formula="(lift / unités_avant) × 100" note={t("help.f.liftP.note")} />
+            <Formula label={t("help.f.reacted.label")} formula="unités_après > 0" />
+            <Formula label={t("help.f.reactTime.label")} formula={t("help.f.reactTime.formula")} />
           </div>
           <Callout variant="info">
-            ℹ️ Le calcul s'appuie sur le <strong>journal cumulatif des ventes</strong> : chaque
-            commande compte à sa date réelle, avec un historique remontant à février 2025 —
-            les fenêtres avant/après sont donc complètes pour toute action postérieure à
-            mars 2025.
+            <Rich text={t("help.mkt.callout")} />
           </Callout>
         </Section>
 
         {/* 6. Google Sheets */}
-        <Section id="sheets" n={6} title="Google Sheets (CRM)">
+        <Section id="sheets" n={6} title={t("help.sec.sheets")}>
           <p className="text-sm text-slate-600">
-            La page <strong>Sheets</strong> lit trois sources CRM : <em>Historique</em>,{" "}
-            <em>Segmentation</em> et <em>DB Products Master</em>. Seule une liste blanche de
-            classeurs est accessible (protection contre les accès non prévus).
+            <Rich text={t("help.sheets.intro")} />
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Card title="✏️ Édition (gestionnaire et +)">
-              Cliquez une cellule pour la modifier. Historique et Segmentation sont éditables ;
-              Products Master est en lecture seule.
+            <Card title={`✏️ ${t("help.sheets.edit.title")}`}>
+              <Rich text={t("help.sheets.edit.body")} />
             </Card>
-            <Card title="🗂️ Archivage automatique">
-              Avant chaque modification ou suppression, la ligne d'origine est archivée et
-              l'action est journalisée (qui, quand, quels champs).
+            <Card title={`🗂️ ${t("help.sheets.archive.title")}`}>
+              <Rich text={t("help.sheets.archive.body")} />
             </Card>
           </div>
           <Callout variant="warn">
-            L'accès en lecture/écriture aux Sheets passe par le compte de service{" "}
-            <code>antigravity@…iam.gserviceaccount.com</code>. Un nouveau classeur doit être
-            partagé avec ce compte pour être lisible.
+            <Rich text={t("help.sheets.callout")} />
           </Callout>
         </Section>
 
         {/* 7. FAQ */}
-        <Section id="faq" n={7} title="Questions fréquentes">
+        <Section id="faq" n={7} title={t("help.sec.faq")}>
           <FaqAccordion />
         </Section>
 
         <footer className="text-center text-xs text-slate-400 pt-4 border-t border-black/5">
-          Une question non couverte ? Contactez l'équipe Données · Groupe Chanv.
+          {t("help.footer")}
         </footer>
       </div>
     </div>
