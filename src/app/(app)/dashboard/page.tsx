@@ -26,7 +26,7 @@ interface MasterEntry { thc: number | null; cbd: number | null; nameFr: string; 
 /** URL de Pilotage Production (deep link natif : ?view=<SKU master>) */
 const PRODUCTION_URL =
   process.env.NEXT_PUBLIC_PRODUCTION_URL ||
-  "https://nouvelle-production-bleuh-271227085398.northamerica-northeast1.run.app";
+  "https://nouvelle-production-cannabis.chanv.com";
 /** Deux index : par GTIN-12 (clé primaire) et par Retailer SKU normalisé (fallback) */
 interface MasterMap { byGtin: Record<string, MasterEntry>; bySku: Record<string, MasterEntry> }
 
