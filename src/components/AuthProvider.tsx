@@ -118,6 +118,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await fetch("/api/session", { method: "DELETE" });
+    // Le SDK accepte AUSSI le cookie hub __gandalf_session (.chanv.com) en
+    // repli : sans le fermer côté hub, la session renaissait aussitôt et le
+    // bouton Déconnexion « ne faisait rien » en standalone.
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_HUB_URL || "https://gandalf.chanv.com"}/api/sso/session`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch {
+      /* hub injoignable — la session app est quand même fermée */
+    }
     await fbSignOut(firebaseAuth());
     setSession(null);
   }, []);
