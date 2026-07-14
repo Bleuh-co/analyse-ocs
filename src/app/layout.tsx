@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 import Script from "next/script";
+import { StandaloneWidgets } from "@/components/StandaloneWidgets";
 import { headers } from "next/headers";
 import { GandalfProvider } from "@bleuh-co/gandalf-sdk-next/client";
 import "./globals.css";
@@ -52,10 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <Toaster richColors position="top-right" />
           </AuthProvider>
         </GandalfProvider>
-        {/* Hub Widgets — redondants avec le chrome du hub en mode embarqué */}
-        {!embedded && (
-          <>
-        {/* Hub Widgets */}
+        {/* Pont d'auth pour les widgets du hub */}
         <Script id="chanv-auth-bridge" strategy="beforeInteractive">{`
           window.getAuthToken = async function() {
             try {
@@ -66,11 +64,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             return null;
           };
         `}</Script>
-        <Script src={`${HUB_URL}/widgets/chatbot.js`} data-hub={HUB_URL} strategy="lazyOnload" />
-        <Script src={`${HUB_URL}/widgets/feedback.js`} data-hub={HUB_URL} strategy="lazyOnload" />
-        <Script src={`${HUB_URL}/js/gandalf-widget.js`} data-hub={HUB_URL} strategy="lazyOnload" />
-          </>
-        )}
+        {/* Widgets flottants : la détection embed serveur (cookie gandalf_embed
+            collant) contaminait le standalone (widgets/burger morts) — le
+            composant client vérifie le VRAI framing (window.self !== window.top). */}
+        <StandaloneWidgets hubUrl={HUB_URL} scripts={["/widgets/chatbot.js", "/widgets/feedback.js", "/js/gandalf-widget.js"]} />
         {/* Service worker — rend la PWA installable */}
         <Script id="register-sw" strategy="afterInteractive">{`
           if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
