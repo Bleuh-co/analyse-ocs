@@ -85,7 +85,12 @@ async function resolveAnalyOcsAppId(
   const appsSnap = await db.collection("apps").get();
   const match = appsSnap.docs.find((d) => {
     const name = (d.data().name || "").toLowerCase().replace(/\s+/g, "");
-    return name.includes("analyseocs") || (name.includes("duplication") && name.includes("taches"));
+    // Copier-collé de Duplication Tâches corrigé (recette 2026-07-14) : ce
+    // matcher résolvait l'appId de « Duplication Tâches Basecamp » → les rôles
+    // de « Données de Ventes Ontario » n'étaient JAMAIS lus (David admin vu
+    // « membre »). Env ANALYOCS_APP_ID reste la référence stable.
+    const norm = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return norm.includes("analyseocs") || (norm.includes("ventes") && norm.includes("ontario"));
   });
   return { appId: match?.id || "", appName: (match?.data().name as string) || null };
 }

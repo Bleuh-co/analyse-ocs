@@ -12,7 +12,18 @@ const MAX_SIZE = 10 * 1024 * 1024;
  * POST /api/upload/parse — Reçoit un xlsx, le parse et retourne le preview du matching
  */
 export async function POST(req: NextRequest) {
-  await requireGestionnaire();
+  // Refus propre en JSON : requireGestionnaire jette (UNAUTHORIZED/FORBIDDEN)
+  // et le 500 vide faisait planter le front (« Unexpected end of JSON input »).
+  try {
+    await requireGestionnaire();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "";
+    const status = msg === "FORBIDDEN" ? 403 : 401;
+    return NextResponse.json(
+      { error: status === 403 ? "Rôle insuffisant pour importer (Gestionnaire requis)." : "Session expirée — reconnectez-vous." },
+      { status }
+    );
+  }
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
