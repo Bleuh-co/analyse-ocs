@@ -7,6 +7,7 @@ import { useGandalf } from "@bleuh-co/gandalf-sdk-next/client";
 import { useAuth } from "./AuthProvider";
 import { Sidebar } from "./Sidebar";
 import { useT } from "@/lib/i18n";
+import type { Role } from "@/lib/types";
 
 function cn(...classes: (string | false | undefined | null)[]) {
   return classes.filter(Boolean).join(" ");
@@ -14,11 +15,12 @@ function cn(...classes: (string | false | undefined | null)[]) {
 
 // « masqué ≠ perdu » : la même liste alimente la barre standalone ET la nav
 // d'embed — aucun lien ne disparaît en mode embarqué.
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; labelKey: string; icon: string; minRole?: Role }[] = [
   { href: "/dashboard", labelKey: "nav.dashboard", icon: "📊" },
   { href: "/actions-marketing", labelKey: "nav.marketing", icon: "📣" },
   { href: "/sheets", labelKey: "nav.sheets", icon: "📑" },
-  { href: "/upload", labelKey: "nav.upload", icon: "📤" },
+  // « Importer » (upload OCS) = Gestionnaire+ : un Consulter ne le voit pas.
+  { href: "/upload", labelKey: "nav.upload", icon: "📤", minRole: "gestionnaire" },
   { href: "/stores", labelKey: "nav.stores", icon: "🏪" },
   { href: "/aide", labelKey: "nav.help", icon: "📖" },
 ];
@@ -30,6 +32,11 @@ export function NavBar() {
   const t = useT();
   if (!session) return null;
 
+  // Onglets réservés Gestionnaire+ (ex. Importer) masqués pour Consulter (membre).
+  const canManage =
+    session.role === "gestionnaire" || session.role === "admin" || session.role === "superadmin";
+  const visibleLinks = NAV_LINKS.filter((l) => !l.minRole || canManage);
+
   if (embedded) {
     // Contrat d'embed, morceau 3 — nav interne d'embed, modèle xero/elearning
     // (#gandalf-embed-nav) : barre claire sticky sur fond parchemin, pastilles
@@ -37,7 +44,7 @@ export function NavBar() {
     // logout — on ne recrée rien de redondant (pas de widget/menu Gandalf).
     return (
       <nav id="gandalf-embed-nav" className="sticky top-0 z-40 flex flex-wrap items-center gap-1.5 bg-[#F4EFE3] px-4 pb-1 pt-3">
-        {NAV_LINKS.map((link) => {
+        {visibleLinks.map((link) => {
           const active = pathname === link.href || pathname?.startsWith(link.href + "/");
           return (
             <Link
@@ -85,7 +92,7 @@ export function NavBar() {
 
         {/* Nav links — desktop only (sidebar handles mobile) */}
         <nav className="hidden md:flex items-center gap-1 ml-2">
-          {NAV_LINKS.map((link) => (
+          {visibleLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
