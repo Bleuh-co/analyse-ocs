@@ -1012,6 +1012,8 @@ html.gandalf-dark .spinner {
 /* --- Graphiques recharts (lisibilité des ventes) --- */
 html.gandalf-dark .recharts-cartesian-axis-tick text,
 html.gandalf-dark .recharts-polar-angle-axis-tick text,
+html.gandalf-dark .recharts-label,
+html.gandalf-dark .recharts-cartesian-axis-label,
 html.gandalf-dark .recharts-pie-label-text {
   fill: rgba(255, 255, 255, 0.65);
 }

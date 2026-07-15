@@ -32,6 +32,8 @@ interface AuthContextValue {
   firebaseUser: User | null;
   session: SessionUser | null;
   loading: boolean;
+  /** Email d'un compte authentifié mais refusé (rôle blocked) — carte de refus standard */
+  deniedEmail: string | null;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [session, setSession] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deniedEmail, setDeniedEmail] = useState<string | null>(null);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -84,14 +87,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           setSession(data.user || null);
+          setDeniedEmail(null);
         } else {
           const err = await res.json().catch(() => ({}));
-          console.error("[AuthProvider] session POST failed:", res.status);
-          toast.error(
-            err.error
-              ? `${err.error}${err.detail ? ` (${err.detail})` : ""}`
-              : `Session refusée (${res.status})`
-          );
+          if (res.status === 403 && err.blocked) {
+            // Carte de refus standard (contrat recette) — pas de toast en doublon.
+            setDeniedEmail(err.email || u.email || "");
+          } else {
+            console.error("[AuthProvider] session POST failed:", res.status);
+            toast.error(
+              err.error
+                ? `${err.error}${err.detail ? ` (${err.detail})` : ""}`
+                : `Session refusée (${res.status})`
+            );
+          }
           await fbSignOut(auth);
           setSession(null);
         }
@@ -107,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     const auth = firebaseAuth();
+    setDeniedEmail(null);
     try {
       await signInWithPopup(auth, googleProvider());
     } catch (e: any) {
@@ -134,8 +144,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ firebaseUser, session, loading, signInWithGoogle, signOut, refreshSession }),
-    [firebaseUser, session, loading, signInWithGoogle, signOut, refreshSession]
+    () => ({ firebaseUser, session, loading, deniedEmail, signInWithGoogle, signOut, refreshSession }),
+    [firebaseUser, session, loading, deniedEmail, signInWithGoogle, signOut, refreshSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

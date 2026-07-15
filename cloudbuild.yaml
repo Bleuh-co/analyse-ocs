@@ -55,7 +55,7 @@ steps:
       # --update-env-vars (et non --set-env-vars) : préserve les variables déjà
       # posées sur le service (ex. ANALYOCS_APP_ID). Délimiteur ^;^ pour les
       # valeurs contenant des virgules.
-      - --update-env-vars=^;^NEXT_PUBLIC_HUB_URL=https://gandalf.chanv.com;ANALYOCS_APP_ID=Ph6caHVp0m9k5drxWIGE;NEXT_PUBLIC_FIREBASE_PROJECT_ID=antigravity-20260107;NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS=chanv.com,bleuh.co,lafeuilleverte.ca,maisondherbes.com
+      - --update-env-vars=^;^NEXT_PUBLIC_HUB_URL=https://gandalf.chanv.com;HUB_URL=https://gandalf.chanv.com;ANALYOCS_APP_ID=Ph6caHVp0m9k5drxWIGE;NEXT_PUBLIC_FIREBASE_PROJECT_ID=antigravity-20260107;NEXT_PUBLIC_ALLOWED_EMAIL_DOMAINS=chanv.com,bleuh.co,lafeuilleverte.ca,maisondherbes.com
       - --set-secrets=FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest
 
 images:

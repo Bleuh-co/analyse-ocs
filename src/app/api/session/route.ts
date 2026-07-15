@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
     );
   }
   if (role === "blocked") {
-    return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    // Contrat recette : le 403 porte { blocked, email } pour la carte de refus.
+    return NextResponse.json(
+      { error: "Accès non autorisé", blocked: true, email: decoded.email },
+      { status: 403 }
+    );
   }
 
   let cookie: string;

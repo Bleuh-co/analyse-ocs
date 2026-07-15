@@ -36,7 +36,7 @@ export function NavBar() {
     // blanches arrondies, pastille active or. Le hub fournit logo/titre/profil/
     // logout — on ne recrée rien de redondant (pas de widget/menu Gandalf).
     return (
-      <nav className="sticky top-0 z-40 flex flex-wrap items-center gap-1.5 bg-[#F4EFE3] px-4 pb-1 pt-3">
+      <nav id="gandalf-embed-nav" className="sticky top-0 z-40 flex flex-wrap items-center gap-1.5 bg-[#F4EFE3] px-4 pb-1 pt-3">
         {NAV_LINKS.map((link) => {
           const active = pathname === link.href || pathname?.startsWith(link.href + "/");
           return (
@@ -63,7 +63,7 @@ export function NavBar() {
     <header className="chanv-header">
       <div className="mx-auto max-w-7xl flex items-center gap-4 relative px-4">
         <a
-          href={process.env.NEXT_PUBLIC_HUB_URL || "https://chanv-apps-hub-271227085398.northamerica-northeast1.run.app/"}
+          href={process.env.NEXT_PUBLIC_HUB_URL || "https://gandalf.chanv.com"}
           className="chanv-logo-wrapper flex items-center"
           title={t("nav.backToHub")}
         >
