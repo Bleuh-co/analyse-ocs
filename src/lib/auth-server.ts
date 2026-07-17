@@ -59,7 +59,9 @@ function mapLegacyToStandard(oldRole: string): string {
     case "Employe":
       return "Consulter";
     default:
-      return "Consulter";
+      // Deny-by-default (contrat recette) : un rôle Hub inconnu (ex. « Invite »)
+      // ne donne PLUS « Consulter » — il tombe sur « Non visible » → blocked.
+      return "Non visible";
   }
 }
 
@@ -121,7 +123,10 @@ export async function resolveRoleVerbose(email: string): Promise<RoleResolution>
     userAppRoleGrade: null,
     legacyGlobalRole: null,
     source: "default",
-    role: "membre",
+    // Deny-by-default (contrat recette) : aucune autorisation explicite
+    // (registre user_app_roles, rôle Hub, bootstrap) = refusé. Avant : « membre »
+    // (ouvert au domaine) — n'importe quel compte gaté entrait sans rôle attribué.
+    role: "blocked",
   };
 
   // 1. Bootstrap
@@ -174,8 +179,11 @@ export async function resolveRoleVerbose(email: string): Promise<RoleResolution>
     console.warn("[auth] users lookup failed", e);
   }
 
-  // 4. Default — ouvert au domaine
-  return { ...base, source: "default", role: "membre" };
+  // 4. Deny-by-default (contrat recette) : aucune autorisation trouvée = refusé.
+  //    Il faut un grade au registre user_app_roles/{email}__{appId} (posé via le
+  //    gestionnaire du Hub) OU un rôle Hub reconnu. Les bootstrap admins gardent
+  //    l'accès (étape 1). Avant : « membre » (ouvert au domaine).
+  return { ...base, source: "default", role: "blocked" };
 }
 
 /**

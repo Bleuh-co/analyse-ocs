@@ -19,7 +19,9 @@ export const gandalfAdmin: AdminLike = {
  *   2. resolveRole (bootstrap admins → superadmin ;
  *      user_app_roles `${email}__${appId}` (ANALYOCS_APP_ID ou matcher par nom)
  *      → mapping grades Hub (Gestionnaire → gestionnaire, Consulter → membre…) ;
- *      users.role legacy global en fallback ; défaut "membre").
+ *      users.role legacy global en fallback ; DÉFAUT "blocked" — deny-by-default :
+ *      sans grade explicite au registre NI rôle Hub reconnu, l'accès est refusé
+ *      au gate, exactement comme les autres apps sdk-next).
  * "blocked" est listé dans noAccessRoles → refus (deny-by-default).
  * Le rôle « gestionnaire » et ses droits d'écriture (requireGestionnaire :
  * upload, stores, sheets, marketing — suppression réservée à requireAdmin)
