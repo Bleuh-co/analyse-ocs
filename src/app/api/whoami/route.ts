@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { adminAuth } from "@/lib/firebase-admin";
 import { resolveRoleVerbose } from "@/lib/auth-server";
-import { isEmailDomainAllowed } from "@/lib/utils";
+import { isEmailAllowed } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Session invalide" }, { status: 401 });
   }
-  if (!email || !isEmailDomainAllowed(email)) {
+  if (!email || !(await isEmailAllowed(email))) {
     return NextResponse.json({ error: "Domaine non autorisé" }, { status: 403 });
   }
 

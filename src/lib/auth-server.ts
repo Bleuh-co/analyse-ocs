@@ -1,5 +1,6 @@
 import "server-only";
 import { adminAuth, adminDb } from "./firebase-admin";
+import { isEmailDomainAllowed } from "./utils";
 import type { Role } from "./types";
 
 const SESSION_COOKIE = "__session";
@@ -187,6 +188,30 @@ export async function resolveRoleVerbose(email: string): Promise<RoleResolution>
 export async function resolveRole(email: string): Promise<Role> {
   const r = await resolveRoleVerbose(email);
   return r.role;
+}
+
+/**
+ * Whitelist externe : un utilisateur INVITÉ (doc `users/{email}.invited === true`,
+ * posé par « Inviter un externe » du hub) est traité comme un compte du domaine —
+ * le gate ne le bloque plus par domaine. Son accès réel est ensuite décidé par le
+ * rôle (ou le deny-by-default), EXACTEMENT comme un employé chanv.com / bleuh.co /
+ * lafeuilleverte.ca : sans rôle assigné, il reste bloqué.
+ */
+export async function isWhitelisted(email: string | null | undefined): Promise<boolean> {
+  const e = (email || "").toLowerCase().trim();
+  if (!e) return false;
+  try {
+    const doc = await adminDb().collection("users").doc(e).get();
+    return doc.exists && doc.data()?.invited === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Gate d'entrée : domaine autorisé OU whitelisté (invité). Async (lecture Firestore). */
+export async function isEmailAllowed(email: string | null | undefined): Promise<boolean> {
+  if (isEmailDomainAllowed(email)) return true;
+  return isWhitelisted(email);
 }
 
 export async function getSession(): Promise<SessionContext | null> {

@@ -8,7 +8,7 @@ import {
   getSession,
   sessionCookieOptions,
 } from "@/lib/auth-server";
-import { isEmailDomainAllowed } from "@/lib/utils";
+import { isEmailAllowed } from "@/lib/auth-server";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!isEmailDomainAllowed(decoded.email)) {
+  if (!(await isEmailAllowed(decoded.email))) {
     return NextResponse.json(
       { error: `Domaine email non autorisé: ${decoded.email}` },
       { status: 403 }

@@ -1,8 +1,7 @@
 import "server-only";
 import type { AdminLike } from "@bleuh-co/gandalf-sdk-next/server";
 import { adminAuth, adminDb } from "./firebase-admin";
-import { isEmailDomainAllowed } from "./utils";
-import { resolveRole } from "./auth-server";
+import { resolveRole, isEmailAllowed } from "./auth-server";
 
 /**
  * Adaptateur firebase-admin → contrat AdminLike du SDK Gandalf.
@@ -16,7 +15,7 @@ export const gandalfAdmin: AdminLike = {
 /**
  * roleMapper : branche la résolution de rôle propre à Analyse OCS dans le SDK —
  * règles EXACTES de l'ancien getSession, zéro régression :
- *   1. filtre de domaine (isEmailDomainAllowed) → sinon "blocked",
+ *   1. gate d'entrée : domaine autorisé OU whitelisté (invité) → sinon "blocked",
  *   2. resolveRole (bootstrap admins → superadmin ;
  *      user_app_roles `${email}__${appId}` (ANALYOCS_APP_ID ou matcher par nom)
  *      → mapping grades Hub (Gestionnaire → gestionnaire, Consulter → membre…) ;
@@ -27,6 +26,6 @@ export const gandalfAdmin: AdminLike = {
  * restent inchangés.
  */
 export const analyOcsRoleMapper = async (email: string): Promise<string> => {
-  if (!isEmailDomainAllowed(email)) return "blocked";
+  if (!(await isEmailAllowed(email))) return "blocked";
   return resolveRole(email);
 };
